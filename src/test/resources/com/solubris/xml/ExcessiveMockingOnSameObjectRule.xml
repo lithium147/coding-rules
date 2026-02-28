@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<test-data
+        xmlns="http://pmd.sourceforge.net/rule-tests"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://pmd.sourceforge.net/rule-tests https://pmd.sourceforge.io/rule-tests_1_0_0.xsd">
+    <test-code>
+        <description>Excessive mocking on same object should trigger violation</description>
+        <expected-problems>1</expected-problems>
+        <code><![CDATA[
+public class TestClass {
+    public void testMethod() {
+        Object mock = new Object();
+        when(mock.someMethod()).thenReturn(true);
+        when(mock.anotherMethod()).thenReturn(false);
+        when(mock.thirdMethod()).thenReturn(null);
+        when(mock.fourthMethod()).thenReturn("test"); // This should trigger violation
+    }
+}
+        ]]></code>
+    </test-code>
+
+    <test-code>
+        <description>Mocking within allowed limit should not trigger violation</description>
+        <expected-problems>0</expected-problems>
+        <code><![CDATA[
+public class TestClass {
+    public void testMethod() {
+        Object mock = new Object();
+        when(mock.someMethod()).thenReturn(true);
+        when(mock.anotherMethod()).thenReturn(false);
+        when(mock.thirdMethod()).thenReturn(null);
+    }
+}
+        ]]></code>
+    </test-code>
+
+    <test-code>
+        <description>Different mock objects should not trigger violation</description>
+        <expected-problems>0</expected-problems>
+        <code><![CDATA[
+public class TestClass {
+    public void testMethod() {
+        Object mock1 = new Object();
+        Object mock2 = new Object();
+
+        when(mock1.someMethod()).thenReturn(true);
+        when(mock1.anotherMethod()).thenReturn(false);
+
+        when(mock2.someMethod()).thenReturn(true);
+        when(mock2.anotherMethod()).thenReturn(false);
+    }
+}
+        ]]></code>
+    </test-code>
+</test-data>

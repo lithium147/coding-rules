@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0
+         https://pmd.sourceforge.io/ruleset_2_0_0.xsd"
+         name="Solubris Custom Rules">
+    <description>
+        Custom PMD rules for detecting code quality issues
+    </description>
+
+    <rule name="ExcessiveMockingOnSameObjectRule"
+          language="java"
+          since="1.0.0"
+          class="com.solubris.ExcessiveMockingOnSameObjectRule"
+          message="Excessive mocking on {0}: {1} calls detected. Maximum allowed: {2}">
+        <description>
+            Detects when a single mock object has excessive Mockito when() calls within a method.
+            This can indicate that a test is testing too much or that the mock setup is overly complex.
+        </description>
+        <priority>3</priority>
+        <example><![CDATA[
+public void testOrderProcessing() {
+    Order mockOrder = mock(Order.class);
+
+    // These 4 when() calls on the same mock exceed the default limit of 3
+    when(mockOrder.getTotal()).thenReturn(100.0);
+    when(mockOrder.getStatus()).thenReturn("PENDING");
+    when(mockOrder.getItems()).thenReturn(items);
+    when(mockOrder.getId()).thenReturn("123");
+
+    // Process the order...
+}
+]]></example>
+    </rule>
+</ruleset>
