@@ -23,34 +23,27 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.toList;
 
 /**
- * Maven Enforcer Rule: VersionPropertyRule.
+ * Ensures that version properties are used only when a version appears more than once in the POM.
  *
- * <p>
- * Ensures that version properties are used only when a version appears more
- * than once in the POM. Enforces that:
- * </p>
+ * <p>Enforces that:
  * <ul>
  * <li>If a version string appears only once, it should be hardcoded</li>
  * <li>If a version string appears multiple times, it MUST be defined as a
  * property and referenced</li>
  * </ul>
  *
- * <p>
- * This prevents unnecessary property definitions and improves POM readability.
- * </p>
- *
- * @author Maven Enforcer Plugin
- * @see <a href="https://maven.apache.org/enforcer/enforcer-api/writing-a-custom-rule.html">
- * Writing a Custom Rule</a>
+ * <p>This prevents unnecessary property definitions and improves POM readability.
  */
 @Named("versionPropertyRule")
 public class VersionPropertyRule extends AbstractEnforcerRule {
@@ -62,6 +55,7 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
     private boolean ignoreParentVersion = true;
     private List<String> excludeVersions = new ArrayList<>();
 
+    @SuppressWarnings("unused")
     @Inject
     public VersionPropertyRule(MavenSession session) {
         this(modelFrom(session));
@@ -92,7 +86,7 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
     }
 
     protected Stream<String> scanAll() {
-        // TODO scan plugin dependencies
+        // TODO scan build extensions
         Stream.Builder<Stream<Artifact>> result = Stream.builder();
         result.add(scanDependencies(directDependencies(model), "direct-dependency"));
         result.add(scanDependencies(managedDependencies(model), "managed-dependency"));
@@ -101,9 +95,9 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
         result.add(scanProfiles(model));
 
         Map<String, List<String>> versionLocations = result.build()
-                .flatMap(Function.identity())
+                .flatMap(identity())
                 .filter(artifact -> !isExcluded(artifact.getVersion()))
-                .collect(groupingBy(Artifact::getVersion, Collectors.mapping(Artifact::toString, Collectors.toList())));
+                .collect(groupingBy(Artifact::getVersion, mapping(Artifact::toString, toList())));
 
         return checkVersionPropertyUsage(versionLocations);
     }
@@ -144,18 +138,25 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
                 .flatMap(Collection::stream);
     }
 
-    private Stream<Plugin> directPlugins(Profile profile) {
+    private static Stream<Plugin> directPlugins(Profile profile) {
         return Optional.ofNullable(profile.getBuild())
                 .map(BuildBase::getPlugins)
                 .stream()
                 .flatMap(Collection::stream);
     }
 
-    private Stream<Artifact> scanProfiles(Model model) {
+    private static Stream<Dependency> pluginDependencies(Plugin plugin) {
+        return Optional.ofNullable(plugin.getDependencies())
+                .stream()
+                .flatMap(Collection::stream);
+    }
+
+    private static Stream<Artifact> scanProfiles(Model model) {
         if (model.getProfiles() == null) return Stream.empty();
 
         Stream.Builder<Stream<Artifact>> result = Stream.builder();
         for (Profile profile : model.getProfiles()) {
+            // TODO what if the property is in the profile?
             result.add(scanDependencies(directDependencies(model), profile.getId() + "-direct-dependency"));
             result.add(scanDependencies(managedDependencies(model), profile.getId() + "-managed-dependency"));
             result.add(scanDependencies(directDependencies(profile), profile.getId() + "-direct-dependency"));
@@ -164,17 +165,19 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
             result.add(scanPlugins(managedPlugins(profile), profile.getId() + "-managed-plugin"));
         }
 
-        return result.build().flatMap(Function.identity());
+        return result.build().flatMap(identity());
     }
 
-    private Stream<Artifact> scanDependencies(Stream<Dependency> dependencies, String type) {
-        return dependencies
-                .map(dep -> new Artifact(dep.getVersion(), dep.getArtifactId(), dep.getGroupId(), type));
+    private static Stream<Artifact> scanDependencies(Stream<Dependency> dependencies, String type) {
+        return dependencies.map(dep -> new Artifact(dep, type));
     }
 
-    private Stream<Artifact> scanPlugins(Stream<Plugin> plugins, String type) {
-        return plugins
-                .map(dep -> new Artifact(dep.getVersion(), dep.getArtifactId(), dep.getGroupId(), type));
+    private static Stream<Artifact> scanPlugins(Stream<Plugin> plugins, String type) {
+        return plugins.flatMap(plugin ->
+                Stream.concat(
+                        Stream.of(new Artifact(plugin, type)),
+                        scanDependencies(pluginDependencies(plugin), type + "-dependency")
+                ));
     }
 
     /**

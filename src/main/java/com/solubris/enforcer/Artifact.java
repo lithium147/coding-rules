@@ -1,5 +1,8 @@
 package com.solubris.enforcer;
 
+import org.apache.maven.model.Dependency;
+import org.apache.maven.model.Plugin;
+
 public class Artifact {
     private final String version;
     private final String artifactId;
@@ -13,6 +16,14 @@ public class Artifact {
         this.groupId = groupId;
         this.type = type;
         this.managed = false;
+    }
+
+    public Artifact(Dependency dependency, String type) {
+        this(dependency.getVersion(), dependency.getArtifactId(), dependency.getGroupId(), type);
+    }
+
+    public Artifact(Plugin plugin, String type) {
+        this(plugin.getVersion(), plugin.getArtifactId(), plugin.getGroupId(), type);
     }
 
     public String getVersion() {
