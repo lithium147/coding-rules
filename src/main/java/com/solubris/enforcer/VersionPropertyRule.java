@@ -3,12 +3,25 @@ package com.solubris.enforcer;
 import org.apache.maven.enforcer.rule.api.AbstractEnforcerRule;
 import org.apache.maven.enforcer.rule.api.EnforcerRuleException;
 import org.apache.maven.execution.MavenSession;
-import org.apache.maven.model.*;
+import org.apache.maven.model.BuildBase;
+import org.apache.maven.model.Dependency;
+import org.apache.maven.model.DependencyManagement;
+import org.apache.maven.model.Model;
+import org.apache.maven.model.ModelBase;
+import org.apache.maven.model.Plugin;
+import org.apache.maven.model.PluginManagement;
+import org.apache.maven.model.Profile;
 import org.apache.maven.project.MavenProject;
 
 import javax.inject.Inject;
 import javax.inject.Named;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -54,6 +67,10 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
         this(modelFrom(session));
     }
 
+    protected VersionPropertyRule(Model model) {
+        this.model = model;
+    }
+
     private static Model modelFrom(MavenSession session) {
         // Use original model to avoid implicit/default plugins and dependencies
         // that Maven adds automatically (e.g., default compiler plugin)
@@ -62,16 +79,10 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
         return originalModel != null ? originalModel : project.getModel();
     }
 
-    protected VersionPropertyRule(Model model) {
-        this.model = model;
-    }
-
     @Override
     public void execute() throws EnforcerRuleException {
-        Stream<String> violations = scanAll();
-
         LongAdder count = new LongAdder();
-        String message = violations
+        String message = scanAll()
                 .map(v -> "  - " + v)
                 .peek(v -> count.increment())
                 .collect(Collectors.joining("\n", "Version property violations found:\n", "\n"));
