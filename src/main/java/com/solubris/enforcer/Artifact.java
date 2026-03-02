@@ -11,29 +11,35 @@ public class Artifact {
     private final String groupId;
     private final String type;      // dependency, plugin, parent, etc.
     private final boolean managed;  // whether the version is from dependencyManagement or pluginManagement
+    private final String profile;
 
-    public Artifact(String version, String artifactId, String groupId, String type) {
+    public Artifact(String version, String artifactId, String groupId, String type, boolean managed, String profile) {
         this.version = version;
         this.artifactId = artifactId;
         this.groupId = groupId;
         this.type = type;
-        this.managed = false;
+        this.managed = managed;
+        this.profile = profile;
     }
 
-    public Artifact(Dependency dependency, String type) {
-        this(dependency.getVersion(), dependency.getArtifactId(), dependency.getGroupId(), type);
+    public Artifact(Dependency dependency, boolean managed, String profile) {
+        this(dependency.getVersion(), dependency.getArtifactId(), dependency.getGroupId(), "Dependency", managed, profile);
     }
 
-    public Artifact(Plugin plugin, String type) {
-        this(plugin.getVersion(), plugin.getArtifactId(), plugin.getGroupId(), type);
+    public Artifact(Plugin plugin, boolean managed, String profile) {
+        this(plugin.getVersion(), plugin.getArtifactId(), plugin.getGroupId(), "Plugin", managed, profile);
     }
 
-    public Artifact(Extension extension, String type) {
-        this(extension.getVersion(), extension.getArtifactId(), extension.getGroupId(), type);
+    public Artifact(ReportPlugin plugin) {
+        this(plugin.getVersion(), plugin.getArtifactId(), plugin.getGroupId(), "ReportPlugin", false, null);
     }
 
-    public Artifact(ReportPlugin plugin, String type) {
-        this(plugin.getVersion(), plugin.getArtifactId(), plugin.getGroupId(), type);
+    public Artifact(ReportPlugin plugin, String profile) {
+        this(plugin.getVersion(), plugin.getArtifactId(), plugin.getGroupId(), "ReportPlugin", false, profile);
+    }
+
+    public Artifact(Extension extension) {
+        this(extension.getVersion(), extension.getArtifactId(), extension.getGroupId(), "Extension", false, null);
     }
 
     public String getVersion() {
@@ -58,6 +64,7 @@ public class Artifact {
 
     @Override
     public String toString() {
-        return String.format("%s: %s:%s", type, groupId, artifactId);
+        String profilePart = profile != null ? String.format(" (profile: %s)", profile) : "";
+        return String.format("%s: %s:%s(%s)%s", type, groupId, artifactId, managed ? "managed" : "direct", profilePart);
     }
 }

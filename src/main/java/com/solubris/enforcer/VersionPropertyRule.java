@@ -92,12 +92,12 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
 
     protected Stream<String> scanAll() {
         Stream.Builder<Stream<Artifact>> result = Stream.builder();
-        result.add(scanDependencies(directDependencies(model), "direct-dependency"));
-        result.add(scanDependencies(managedDependencies(model), "managed-dependency"));
-        result.add(scanPlugins(directPlugins(model), "direct-plugin"));
-        result.add(scanPlugins(managedPlugins(model), "managed-plugin"));
-        result.add(scanReportPlugins(reportPlugins(model), "report-plugin"));
-        result.add(scanExtensions(extensions(model), "extension"));
+        result.add(directDependencies(model).map(dep -> new Artifact(dep, false, null)));
+        result.add(managedDependencies(model).map(dep -> new Artifact(dep, true, null)));
+        result.add(scanPlugins(directPlugins(model), false, null));
+        result.add(scanPlugins(managedPlugins(model), true, null));
+        result.add(reportPlugins(model).map(Artifact::new));
+        result.add(extensions(model).map(Artifact::new));
         result.add(scanProfiles(model));
 
         Map<String, List<String>> versionLocations = result.build()
@@ -177,34 +177,25 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
         Stream.Builder<Stream<Artifact>> result = Stream.builder();
         for (Profile profile : model.getProfiles()) {
             // TODO what if the property is in the profile?
-            result.add(scanDependencies(directDependencies(model), profile.getId() + "-direct-dependency"));
-            result.add(scanDependencies(managedDependencies(model), profile.getId() + "-managed-dependency"));
-            result.add(scanDependencies(directDependencies(profile), profile.getId() + "-direct-dependency"));
-            result.add(scanDependencies(managedDependencies(profile), profile.getId() + "-managed-dependency"));
-            result.add(scanPlugins(directPlugins(profile), profile.getId() + "-direct-plugin"));
-            result.add(scanPlugins(managedPlugins(profile), profile.getId() + "-managed-plugin"));
-            result.add(scanReportPlugins(reportPlugins(profile), "report-plugin"));
+            String profileId = profile.getId();
+            result.add(directDependencies(profile).map(dep -> new Artifact(dep, false, profileId)));
+            result.add(managedDependencies(profile).map(dep -> new Artifact(dep, true, profileId)));
+            result.add(scanPlugins(directPlugins(profile), false, profileId));
+            result.add(scanPlugins(managedPlugins(profile), true, profileId));
+            result.add(reportPlugins(profile).map(plugin -> new Artifact(plugin, profileId)));
         }
 
         return result.build().flatMap(identity());
     }
 
-    private static Stream<Artifact> scanDependencies(Stream<Dependency> items, String type) {
-        return items.map(dep -> new Artifact(dep, type));
-    }
-
-    private static Stream<Artifact> scanPlugins(Stream<Plugin> items, String type) {
+    /**
+     * TODO Should plugin dependencies show as a different type than regular dependencies?
+     * TODO Consider whether plugin dependencies should be considered "managed" when the plugin is managed.
+     */
+    private static Stream<Artifact> scanPlugins(Stream<Plugin> items, boolean managed, String profile) {
         return items.flatMap(p ->
-                prepend(new Artifact(p, type), scanDependencies(pluginDependencies(p), type + "-dependency"))
+                prepend(new Artifact(p, managed, profile), pluginDependencies(p).map(d -> new Artifact(d, managed, profile)))
         );
-    }
-
-    private static Stream<Artifact> scanExtensions(Stream<Extension> items, String type) {
-        return items.map(dep -> new Artifact(dep, type));
-    }
-
-    private static Stream<Artifact> scanReportPlugins(Stream<ReportPlugin> items, String type) {
-        return items.map(dep -> new Artifact(dep, type));
     }
 
     /**
