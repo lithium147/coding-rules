@@ -13,6 +13,8 @@ import org.apache.maven.model.ModelBase;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginManagement;
 import org.apache.maven.model.Profile;
+import org.apache.maven.model.ReportPlugin;
+import org.apache.maven.model.Reporting;
 import org.apache.maven.project.MavenProject;
 
 import javax.inject.Inject;
@@ -89,12 +91,12 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
     }
 
     protected Stream<String> scanAll() {
-        // TODO scan reporting
         Stream.Builder<Stream<Artifact>> result = Stream.builder();
         result.add(scanDependencies(directDependencies(model), "direct-dependency"));
         result.add(scanDependencies(managedDependencies(model), "managed-dependency"));
         result.add(scanPlugins(directPlugins(model), "direct-plugin"));
         result.add(scanPlugins(managedPlugins(model), "managed-plugin"));
+        result.add(scanReportPlugins(reportPlugins(model), "report-plugin"));
         result.add(scanExtensions(extensions(model), "extension"));
         result.add(scanProfiles(model));
 
@@ -122,6 +124,13 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
     private static Stream<Extension> extensions(Model model) {
         return Optional.ofNullable(model.getBuild())
                 .map(Build::getExtensions)
+                .stream()
+                .flatMap(Collection::stream);
+    }
+
+    private static Stream<ReportPlugin> reportPlugins(ModelBase model) {
+        return Optional.ofNullable(model.getReporting())
+                .map(Reporting::getPlugins)
                 .stream()
                 .flatMap(Collection::stream);
     }
@@ -174,23 +183,28 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
             result.add(scanDependencies(managedDependencies(profile), profile.getId() + "-managed-dependency"));
             result.add(scanPlugins(directPlugins(profile), profile.getId() + "-direct-plugin"));
             result.add(scanPlugins(managedPlugins(profile), profile.getId() + "-managed-plugin"));
+            result.add(scanReportPlugins(reportPlugins(profile), "report-plugin"));
         }
 
         return result.build().flatMap(identity());
     }
 
-    private static Stream<Artifact> scanDependencies(Stream<Dependency> dependencies, String type) {
-        return dependencies.map(dep -> new Artifact(dep, type));
+    private static Stream<Artifact> scanDependencies(Stream<Dependency> items, String type) {
+        return items.map(dep -> new Artifact(dep, type));
     }
 
-    private static Stream<Artifact> scanPlugins(Stream<Plugin> plugins, String type) {
-        return plugins.flatMap(p ->
+    private static Stream<Artifact> scanPlugins(Stream<Plugin> items, String type) {
+        return items.flatMap(p ->
                 prepend(new Artifact(p, type), scanDependencies(pluginDependencies(p), type + "-dependency"))
         );
     }
 
-    private static Stream<Artifact> scanExtensions(Stream<Extension> extensions, String type) {
-        return extensions.map(dep -> new Artifact(dep, type));
+    private static Stream<Artifact> scanExtensions(Stream<Extension> items, String type) {
+        return items.map(dep -> new Artifact(dep, type));
+    }
+
+    private static Stream<Artifact> scanReportPlugins(Stream<ReportPlugin> items, String type) {
+        return items.map(dep -> new Artifact(dep, type));
     }
 
     /**

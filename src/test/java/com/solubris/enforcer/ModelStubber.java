@@ -7,6 +7,8 @@ import org.apache.maven.model.Extension;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginManagement;
+import org.apache.maven.model.ReportPlugin;
+import org.apache.maven.model.Reporting;
 
 import java.util.Random;
 import java.util.function.Supplier;
@@ -41,10 +43,18 @@ public class ModelStubber {
         return result;
     }
 
+    public static ReportPlugin reportPluginOf(String groupId, String artifactId, String version) {
+        ReportPlugin result = new ReportPlugin();
+        result.setGroupId(groupId);
+        result.setArtifactId(artifactId);
+        result.setVersion(version);
+        return result;
+    }
+
     public static void withAllTypes(Model model, Supplier<String> versionProvider) {
         model.addDependency(dependencyOf("junit", "junit", versionProvider.get()));
         DependencyManagement dependencyManagement = new DependencyManagement();
-        dependencyManagement.addDependency(dependencyOf("org.junit.jupiter", "junit-jupiter-api", versionProvider.get()));
+        dependencyManagement.addDependency(dependencyOf("org.junit.jupiter", "jupiter-api", versionProvider.get()));
         model.setDependencyManagement(dependencyManagement);
         Plugin plugin = pluginOf("org.apache.maven.plugins", "maven-compiler-plugin", versionProvider.get());
         plugin.addDependency(dependencyOf("org.apache.maven", "maven-plugin-api", versionProvider.get()));
@@ -52,8 +62,11 @@ public class ModelStubber {
         build.addPlugin(plugin);
         build.addExtension(extensionOf("org.apache.maven", "maven-core-extension", versionProvider.get()));
         PluginManagement pluginManagement = new PluginManagement();
-        pluginManagement.addPlugin(pluginOf("org.apache.maven.plugins", "maven-surefire-plugin", versionProvider.get()));
+        pluginManagement.addPlugin(pluginOf("org.apache.maven.plugins", "surefire-plugin", versionProvider.get()));
         build.setPluginManagement(pluginManagement);
+        Reporting reporting = new Reporting();
+        reporting.addPlugin(reportPluginOf("org.apache.maven.plugins", "maven-site-plugin", versionProvider.get()));
+        model.setReporting(reporting);
         model.setBuild(build);
     }
 

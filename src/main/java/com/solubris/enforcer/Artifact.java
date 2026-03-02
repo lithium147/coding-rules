@@ -3,6 +3,7 @@ package com.solubris.enforcer;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Extension;
 import org.apache.maven.model.Plugin;
+import org.apache.maven.model.ReportPlugin;
 
 public class Artifact {
     private final String version;
@@ -29,6 +30,10 @@ public class Artifact {
 
     public Artifact(Extension extension, String type) {
         this(extension.getVersion(), extension.getArtifactId(), extension.getGroupId(), type);
+    }
+
+    public Artifact(ReportPlugin plugin, String type) {
+        this(plugin.getVersion(), plugin.getArtifactId(), plugin.getGroupId(), type);
     }
 
     public String getVersion() {
