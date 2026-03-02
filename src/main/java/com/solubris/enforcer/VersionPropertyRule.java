@@ -105,7 +105,7 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
                 .filter(artifact -> !isExcluded(artifact.getVersion()))
                 .collect(groupingBy(Artifact::getVersion, mapping(Artifact::toString, toList())));
 
-        return checkVersionPropertyUsage(versionLocations);
+        return checkUsage(versionLocations);
     }
 
     private static Stream<Dependency> directDependencies(ModelBase model) {
@@ -210,12 +210,10 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
      *
      * @return list of violation messages
      */
-    private Stream<String> checkVersionPropertyUsage(Map<String, List<String>> versionLocations) {
+    private Stream<String> checkUsage(Map<String, List<String>> versionLocations) {
         Map<String, Integer> versionCounts
                 = versionLocations.entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().size()));
-
-        List<String> violations = new ArrayList<>();
 
         // Gather declared properties (use effective project properties so inherited
         // properties are included)
@@ -261,6 +259,8 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
             canonicalCounts.put(canonical, canonicalCounts.getOrDefault(canonical, 0) + count);
         }
 
+        Stream.Builder<String> violations = Stream.builder();
+
         // Now evaluate violations based on canonical counts
         for (Map.Entry<String, Integer> entry : canonicalCounts.entrySet()) {
             String key = entry.getKey();
@@ -290,7 +290,7 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
             }
         }
 
-        return violations.stream();
+        return violations.build();
     }
 
     /**
