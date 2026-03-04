@@ -7,13 +7,11 @@ import org.apache.maven.model.Build;
 import org.apache.maven.model.BuildBase;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.DependencyManagement;
-import org.apache.maven.model.Extension;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.ModelBase;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginManagement;
 import org.apache.maven.model.Profile;
-import org.apache.maven.model.ReportPlugin;
 import org.apache.maven.model.Reporting;
 import org.apache.maven.project.MavenProject;
 
@@ -36,7 +34,6 @@ import java.util.stream.Stream;
 import static com.solubris.StreamSugar.prepend;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
 
 /**
@@ -56,6 +53,7 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
     private static final Pattern PROPERTY_PATTERN = Pattern.compile("\\$\\{([^}]+)\\}");
 
     private final Model model;
+    private final MavenProject project;
 
     private boolean requirePropertiesForDuplicates = true;
     private boolean ignoreParentVersion = true;
@@ -64,11 +62,12 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
     @SuppressWarnings("unused")
     @Inject
     public VersionPropertyRule(MavenSession session) {
-        this(modelFrom(session));
+        this(modelFrom(session), session.getCurrentProject());
     }
 
-    protected VersionPropertyRule(Model model) {
+    protected VersionPropertyRule(Model model, MavenProject project) {
         this.model = model;
+        this.project = project;
     }
 
     private static Model modelFrom(MavenSession session) {
@@ -93,47 +92,80 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
 
     protected Stream<String> scanAll() {
         Stream.Builder<Stream<Artifact>> result = Stream.builder();
-        result.add(directDependencies(model).map(Artifact::direct));
-        result.add(managedDependencies(model).map(Artifact::managed));
+        result.add(directDependencies(model));
+        result.add(managedDependencies(model));
         result.add(scanPlugins(directPlugins(model), false, null));
         result.add(scanPlugins(managedPlugins(model), true, null));
-        result.add(reportPlugins(model).map(Artifact::new));
-        result.add(extensions(model).map(Artifact::new));
+        result.add(reportPlugins(model));
+        result.add(extensions(model));
         result.add(scanProfiles(model));
 
-        Map<String, List<String>> versionLocations = result.build()
-                .flatMap(identity())
-                .filter(artifact -> !isExcluded(artifact.getVersion()))
-                .collect(groupingBy(Artifact::getVersion, mapping(Artifact::toString, toList())));
+        // The version resolve seems to work,
+        // but need to build the version mappings first
+        // or could resolve using the artifact type
+        // not sure which way is better
+        // just get it working with this resolve and see how the usage of the resolve goes
 
-        return checkUsage(versionLocations);
+        Stream<Artifact> resolved = result.build()
+                .flatMap(identity())
+                .map(a -> a.resolve(project));
+
+        Map<String, List<Artifact>> byVersion = resolved
+                .filter(a -> a.getEffectiveVersion() != null)
+                .filter(artifact -> !isExcluded(artifact.getVersion()))
+                .collect(groupingBy(Artifact::getVersion, toList()));
+
+        // byVersion maps from property to list of artifacts
+        // now can go through property keys and check usage
+
+        return model.getProperties().entrySet().stream()
+                .filter(e -> e.getKey().toString().endsWith(".version")) // only check properties that look like versions
+                .map(e -> {
+                    String propName = e.getKey().toString();
+                    String propValue = e.getValue() != null ? e.getValue().toString() : "";
+                    List<Artifact> artifacts = byVersion.getOrDefault("${" + propName + "}", Collections.emptyList());
+                    if (artifacts.size() < 2) {
+                        return singleUseViolation(propName, propValue);
+                    }
+                    return null;
+                }).filter(Objects::nonNull);
+
+//        Map<String, List<String>> versionLocations = resolved
+//                .filter(artifact -> !isExcluded(artifact.getVersion()))
+//                .collect(groupingBy(Artifact::getVersion, mapping(Artifact::toString, toList())));
+//
+//        return checkUsage(versionLocations);
     }
 
-    private static Stream<Dependency> directDependencies(ModelBase model) {
+    private static Stream<Artifact> directDependencies(ModelBase model) {
         return Optional.ofNullable(model.getDependencies())
                 .stream()
-                .flatMap(Collection::stream);
+                .flatMap(Collection::stream)
+                .map(Artifact::direct);
     }
 
-    private static Stream<Dependency> managedDependencies(ModelBase model) {
+    private static Stream<Artifact> managedDependencies(ModelBase model) {
         return Optional.ofNullable(model.getDependencyManagement())
                 .map(DependencyManagement::getDependencies)
                 .stream()
-                .flatMap(Collection::stream);
+                .flatMap(Collection::stream)
+                .map(Artifact::managed);
     }
 
-    private static Stream<Extension> extensions(Model model) {
+    private static Stream<Artifact> extensions(Model model) {
         return Optional.ofNullable(model.getBuild())
                 .map(Build::getExtensions)
                 .stream()
-                .flatMap(Collection::stream);
+                .flatMap(Collection::stream)
+                .map(Artifact::new);
     }
 
-    private static Stream<ReportPlugin> reportPlugins(ModelBase model) {
+    private static Stream<Artifact> reportPlugins(ModelBase model) {
         return Optional.ofNullable(model.getReporting())
                 .map(Reporting::getPlugins)
                 .stream()
-                .flatMap(Collection::stream);
+                .flatMap(Collection::stream)
+                .map(Artifact::new);
     }
 
     private static Stream<Plugin> managedPlugins(Model model) {
@@ -175,18 +207,20 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
     private static Stream<Artifact> scanProfiles(Model model) {
         if (model.getProfiles() == null) return Stream.empty();
 
-        Stream.Builder<Stream<Artifact>> result = Stream.builder();
-        for (Profile profile : model.getProfiles()) {
-            // TODO what if the property is in the profile?
-            String profileId = profile.getId();
-            result.add(directDependencies(profile).map(dep -> new Artifact(dep, false, profileId)));
-            result.add(managedDependencies(profile).map(dep -> new Artifact(dep, true, profileId)));
-            result.add(scanPlugins(directPlugins(profile), false, profileId));
-            result.add(scanPlugins(managedPlugins(profile), true, profileId));
-            result.add(reportPlugins(profile).map(plugin -> new Artifact(plugin, profileId)));
-        }
-
-        return result.build().flatMap(identity());
+        return model.getProfiles().stream()
+                .flatMap(profile -> {
+                    // TODO what if the property is in the profile?
+                    String profileId = profile.getId();
+                    Stream.Builder<Stream<Artifact>> result = Stream.builder();
+                    result.add(directDependencies(profile));
+                    result.add(managedDependencies(profile));
+                    result.add(scanPlugins(directPlugins(profile), false, profileId));
+                    result.add(scanPlugins(managedPlugins(profile), true, profileId));
+                    result.add(reportPlugins(profile));
+                    return result.build()
+                            .flatMap(identity())
+                            .map(a -> a.withProfile(profileId));
+                });
     }
 
     /**
@@ -247,7 +281,7 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
                 String propertyName = matcher.group(1);
                 canonical = "prop:" + propertyName;
                 canonicalRepresentative.putIfAbsent(canonical, "${" + propertyName + "}");
-            } else if (valueToProperty.containsKey(version)) {
+            } else if (valueToProperty.containsKey(version)) {  // but what two properties have the same value? we take the first one
                 // Literal equals a declared property value -> treat as that property
                 String propName = valueToProperty.get(version);
                 canonical = "prop:" + propName;
@@ -278,6 +312,10 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
 
         String propName = key.substring(5);
         String propValue = definedProperties.getOrDefault(propName, "?");
+        return singleUseViolation(propName, propValue);
+    }
+
+    private static String singleUseViolation(String propName, String propValue) {
         return String.format(
                 "Version property '${%s}' (value: %s) is used but appears only once. " +
                         "Remove the property and use the version directly, or ensure it's used in multiple places.",
