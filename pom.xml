@@ -86,6 +86,26 @@
             <version>3.27.7</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- Lombok for code generation (used by ArtifactV2) -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.36</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.code.findbugs</groupId>
+            <artifactId>findbugs-annotations</artifactId>
+            <version>3.0.1</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.checkerframework</groupId>
+            <artifactId>checker-qual</artifactId>
+            <version>3.48.4</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <build>
