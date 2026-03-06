@@ -192,6 +192,7 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <!--suppress MavenModelInspection -->
                     <skip>${skipChecks}</skip>
                     <failOnViolation>false</failOnViolation>
                     <includeTestSourceDirectory>true</includeTestSourceDirectory>
@@ -208,6 +209,7 @@
                 <artifactId>maven-pmd-plugin</artifactId>
                 <version>3.26.0</version>
                 <configuration>
+                    <!--suppress MavenModelInspection -->
                     <skip>${skipChecks}</skip>
                     <failOnViolation>false</failOnViolation>
                     <printFailingErrors>true</printFailingErrors>
@@ -287,11 +289,13 @@
                 <artifactId>maven-enforcer-plugin</artifactId>
                 <version>3.6.2</version>
                 <configuration>
+                    <!--suppress MavenModelInspection -->
                     <skip>${skipChecks}</skip>
                     <rules>
                         <versionPropertyRule>
                             <requirePropertiesForDuplicates>true</requirePropertiesForDuplicates>
                         </versionPropertyRule>
+                        <bomImportScopeRule/>
                     </rules>
                 </configuration>
                 <executions>

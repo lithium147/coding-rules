@@ -52,7 +52,7 @@ class BomImportScopeRuleTest {
         depMgmt.addDependency(bom);
         model.setDependencyManagement(depMgmt);
 
-        Stream<String> violations = rule.scanAll();
+        Stream<String> violations = rule.scan();
 
         assertThat(violations)
                 .hasSize(1)
@@ -70,7 +70,7 @@ class BomImportScopeRuleTest {
         depMgmt.addDependency(bom);
         model.setDependencyManagement(depMgmt);
 
-        Stream<String> violations = rule.scanAll();
+        Stream<String> violations = rule.scan();
 
         assertThat(violations)
                 .hasSize(1)
@@ -85,7 +85,7 @@ class BomImportScopeRuleTest {
         Dependency bom = bomDependency("com.example", "some-bom", "1.0", "import");
         model.addDependency(bom);
 
-        Stream<String> violations = rule.scanAll();
+        Stream<String> violations = rule.scan();
 
         assertThat(violations)
                 .hasSize(1)
@@ -107,7 +107,7 @@ class BomImportScopeRuleTest {
         depMgmt.addDependency(mgmtBom);
         model.setDependencyManagement(depMgmt);
 
-        Stream<String> violations = rule.scanAll();
+        Stream<String> violations = rule.scan();
 
         assertThat(violations)
                 .hasSize(2)

@@ -13,9 +13,6 @@ import static com.solubris.enforcer.ModelStubber.withAllTypes;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
-/**
- * Test cases for VersionPropertyRule enforcer rule.
- */
 class VersionPropertyRuleTest {
     private final Model model = new Model();
     private final VersionPropertyRule rule = new VersionPropertyRule(model);

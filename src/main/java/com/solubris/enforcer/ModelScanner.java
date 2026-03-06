@@ -24,19 +24,6 @@ public class ModelScanner {
     private ModelScanner() {
     }
 
-    static Stream<Artifact> scanModel(Model model) {
-        Stream.Builder<Stream<Artifact>> result = Stream.builder();
-        result.add(directDependencies(model));
-        result.add(managedDependencies(model));
-        result.add(scanPlugins(directPlugins(model), false, null));
-        result.add(scanPlugins(managedPlugins(model), true, null));
-        result.add(reportPlugins(model));
-        result.add(extensions(model));
-        result.add(scanProfiles(model));
-        return result.build()
-                .flatMap(identity());
-    }
-
     private static Stream<Artifact> directDependencies(ModelBase model) {
         return Optional.ofNullable(model.getDependencies())
                 .stream()
@@ -104,6 +91,16 @@ public class ModelScanner {
                 .flatMap(Collection::stream);
     }
 
+    /**
+     * TODO Should plugin dependencies show as a different type than regular dependencies?
+     * TODO Consider whether plugin dependencies should be considered "managed" when the plugin is managed.
+     */
+    private static Stream<Artifact> scanPlugins(Stream<Plugin> items, boolean managed, String profile) {
+        return items.flatMap(p ->
+                prepend(new Artifact(p, managed, profile), pluginDependencies(p).map(d -> new Artifact(d, managed, profile)))
+        );
+    }
+
     private static Stream<Artifact> scanProfiles(Model model) {
         if (model.getProfiles() == null) return Stream.empty();
 
@@ -123,17 +120,20 @@ public class ModelScanner {
                 });
     }
 
-    /**
-     * TODO Should plugin dependencies show as a different type than regular dependencies?
-     * TODO Consider whether plugin dependencies should be considered "managed" when the plugin is managed.
-     */
-    private static Stream<Artifact> scanPlugins(Stream<Plugin> items, boolean managed, String profile) {
-        return items.flatMap(p ->
-                prepend(new Artifact(p, managed, profile), pluginDependencies(p).map(d -> new Artifact(d, managed, profile)))
-        );
+    public static Stream<Artifact> scanModel(Model model) {
+        Stream.Builder<Stream<Artifact>> result = Stream.builder();
+        result.add(directDependencies(model));
+        result.add(managedDependencies(model));
+        result.add(scanPlugins(directPlugins(model), false, null));
+        result.add(scanPlugins(managedPlugins(model), true, null));
+        result.add(reportPlugins(model));
+        result.add(extensions(model));
+        result.add(scanProfiles(model));
+        return result.build()
+                .flatMap(identity());
     }
 
-    static Model modelFrom(MavenSession session) {
+    public static Model modelFrom(MavenSession session) {
         // Use original model to avoid implicit/default plugins and dependencies
         // that Maven adds automatically (e.g., default compiler plugin)
         MavenProject project = session.getCurrentProject();

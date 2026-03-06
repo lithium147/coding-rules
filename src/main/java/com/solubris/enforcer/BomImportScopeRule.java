@@ -12,11 +12,10 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import java.util.Collection;
 import java.util.Optional;
-import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Stream;
 
+import static com.solubris.enforcer.Violations.throwViolations;
 import static java.text.MessageFormat.format;
-import static java.util.stream.Collectors.joining;
 import static org.apache.maven.artifact.ArtifactUtils.key;
 
 /**
@@ -58,25 +57,15 @@ public class BomImportScopeRule extends AbstractEnforcerRule {
 
     @Override
     public void execute() throws EnforcerRuleException {
-        LongAdder count = new LongAdder();
-        String body = scanAll()
-                .peek(v -> count.increment())
-                .map(v -> "  - " + v)
-                .collect(joining("\n", "", "\n"));
-        if (count.longValue() > 0) {
-            String title = "BOM dependencies (type=pom) must use scope=import. Found " + count.sum() + " violation(s):";
-            throw new EnforcerRuleException(title + "\n" + body);
-        }
-
-        getLog().info("All BOM dependencies (type=pom) correctly use scope=import.");
+        throwViolations(scan(), "BOM dependencies (type=pom) must use scope=import. Found {0} violation(s):");
     }
 
-    protected Stream<String> scanAll() {
-        Stream<String> topLevelViolations = directDependencies()
+    protected Stream<String> scan() {
+        Stream<String> topLevelViolations = directDependencies(model)
                 .filter(dep -> POM_TYPE.equals(dep.getType()))
                 .map(dep -> formatViolation(dep, "dependencies"));
 
-        Stream<String> depMgmtViolations = managedDependencies()
+        Stream<String> depMgmtViolations = managedDependencies(model)
                 .filter(dep -> POM_TYPE.equals(dep.getType()))
                 .filter(dep -> !IMPORT_SCOPE.equals(dep.getScope()))
                 .map(dep -> formatViolation(dep, "dependencyManagement"));
@@ -84,13 +73,13 @@ public class BomImportScopeRule extends AbstractEnforcerRule {
         return Stream.concat(topLevelViolations, depMgmtViolations);
     }
 
-    private Stream<Dependency> directDependencies() {
+    private static Stream<Dependency> directDependencies(Model model) {
         return Optional.ofNullable(model.getDependencies())
                 .stream()
                 .flatMap(Collection::stream);
     }
 
-    private Stream<Dependency> managedDependencies() {
+    private static Stream<Dependency> managedDependencies(Model model) {
         return Optional.ofNullable(model.getDependencyManagement())
                 .map(DependencyManagement::getDependencies)
                 .stream()

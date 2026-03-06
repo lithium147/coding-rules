@@ -13,15 +13,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.atomic.LongAdder;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.solubris.enforcer.ModelScanner.scanModel;
+import static com.solubris.enforcer.Violations.throwViolations;
 import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toUnmodifiableSet;
 
 /**
  * Ensures that version properties are used.
@@ -50,14 +49,7 @@ public class UnusedPropertyRule extends AbstractEnforcerRule {
 
     @Override
     public void execute() throws EnforcerRuleException {
-        LongAdder count = new LongAdder();
-        String message = scan()
-                .map(v -> "  - " + v)
-                .peek(v -> count.increment())
-                .collect(joining("\n", "Version property violations found:\n", "\n"));
-        if (count.longValue() > 0) {
-            throw new EnforcerRuleException(message);
-        }
+        throwViolations(scan(), "Found {0} unused property violation(s):");
     }
 
     protected Stream<String> scan() {
@@ -90,7 +82,7 @@ public class UnusedPropertyRule extends AbstractEnforcerRule {
         return Arrays.stream(raw.split("[,\\s]+"))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
-                .collect(Collectors.toSet());
+                .collect(toUnmodifiableSet());
     }
 
     private static boolean isVersionProperty(Map.Entry<String, String> e) {
