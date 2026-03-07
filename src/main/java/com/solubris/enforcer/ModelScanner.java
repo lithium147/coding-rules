@@ -24,19 +24,6 @@ public class ModelScanner {
     private ModelScanner() {
     }
 
-    static Stream<Artifact> scanModel(Model model) {
-        Stream.Builder<Stream<Artifact>> result = Stream.builder();
-        result.add(directDependencies(model));
-        result.add(managedDependencies(model));
-        result.add(scanPlugins(directPlugins(model), false, null));
-        result.add(scanPlugins(managedPlugins(model), true, null));
-        result.add(reportPlugins(model));
-        result.add(extensions(model));
-        result.add(scanProfiles(model));
-        return result.build()
-                .flatMap(identity());
-    }
-
     private static Stream<Artifact> directDependencies(ModelBase model) {
         return Optional.ofNullable(model.getDependencies())
                 .stream()
@@ -133,7 +120,7 @@ public class ModelScanner {
                 });
     }
 
-    public static Stream<Artifact> scanModel(Model model) {
+    static Stream<Artifact> scanModel(Model model) {
         Stream.Builder<Stream<Artifact>> result = Stream.builder();
         result.add(directDependencies(model));
         result.add(managedDependencies(model));
