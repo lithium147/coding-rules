@@ -3,40 +3,23 @@ package com.solubris.enforcer;
 import org.apache.maven.enforcer.rule.api.AbstractEnforcerRule;
 import org.apache.maven.enforcer.rule.api.EnforcerRuleException;
 import org.apache.maven.execution.MavenSession;
-import org.apache.maven.model.Build;
-import org.apache.maven.model.BuildBase;
-import org.apache.maven.model.Dependency;
-import org.apache.maven.model.DependencyManagement;
-import org.apache.maven.model.Extension;
 import org.apache.maven.model.Model;
-import org.apache.maven.model.ModelBase;
-import org.apache.maven.model.Plugin;
-import org.apache.maven.model.PluginManagement;
-import org.apache.maven.model.Profile;
-import org.apache.maven.model.ReportPlugin;
-import org.apache.maven.model.Reporting;
 import org.apache.maven.project.MavenProject;
 
 import javax.inject.Inject;
 import javax.inject.Named;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.atomic.LongAdder;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.solubris.StreamSugar.prepend;
-import static java.util.function.Function.identity;
+import static com.solubris.enforcer.ModelScanner.scanModel;
+import static com.solubris.enforcer.PropertyUtil.fromPlaceHolder;
+import static com.solubris.enforcer.Violations.throwViolations;
 import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
 
 /**
@@ -55,20 +38,23 @@ import static java.util.stream.Collectors.toList;
 public class VersionPropertyRule extends AbstractEnforcerRule {
     private static final Pattern PROPERTY_PATTERN = Pattern.compile("\\$\\{([^}]+)\\}");
 
-    private final Model model;
+    private final Model originalModel;
+    private final Model effectiveModel;
 
-    private boolean requirePropertiesForDuplicates = true;
-    private boolean ignoreParentVersion = true;
-    private List<String> excludeVersions = new ArrayList<>();
+    protected boolean allowSingleUseOfProperty;
+    protected boolean requirePropertiesForDuplicates = true;
+    protected boolean ignoreParentVersion = true;
+    protected List<String> excludeVersions = new ArrayList<>();
 
     @SuppressWarnings("unused")
     @Inject
     public VersionPropertyRule(MavenSession session) {
-        this(modelFrom(session));
+        this(modelFrom(session), session.getCurrentProject().getModel());
     }
 
-    protected VersionPropertyRule(Model model) {
-        this.model = model;
+    protected VersionPropertyRule(Model originalModel, Model effectiveModel) {
+        this.originalModel = originalModel;
+        this.effectiveModel = effectiveModel;
     }
 
     private static Model modelFrom(MavenSession session) {
@@ -81,223 +67,89 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
 
     @Override
     public void execute() throws EnforcerRuleException {
-        LongAdder count = new LongAdder();
-        String message = scanAll()
-                .map(v -> "  - " + v)
-                .peek(v -> count.increment())
-                .collect(Collectors.joining("\n", "Version property violations found:\n", "\n"));
-        if (count.longValue() > 0) {
-            throw new EnforcerRuleException(message);
-        }
+        throwViolations(scan(), "Found {0} version violation(s):");
     }
 
-    protected Stream<String> scanAll() {
-        Stream.Builder<Stream<Artifact>> result = Stream.builder();
-        result.add(directDependencies(model).map(Artifact::direct));
-        result.add(managedDependencies(model).map(Artifact::managed));
-        result.add(scanPlugins(directPlugins(model), false, null));
-        result.add(scanPlugins(managedPlugins(model), true, null));
-        result.add(reportPlugins(model).map(Artifact::new));
-        result.add(extensions(model).map(Artifact::new));
-        result.add(scanProfiles(model));
-
-        Map<String, List<String>> versionLocations = result.build()
-                .flatMap(identity())
+    @SuppressWarnings("PMD.CollapsibleIfStatements")
+    protected Stream<String> scan() {
+        Map<String, List<Artifact>> byKey = scanModel(effectiveModel)
+                .collect(groupingBy(Artifact::fullKey, toList()));
+        Map<String, List<Artifact>> usages = scanModel(originalModel)
+                .map(a -> a.withEffectiveVersion(fetchVersion(a, byKey)))
+                .filter(a -> a.getEffectiveVersion() != null)
                 .filter(artifact -> !isExcluded(artifact.getVersion()))
-                .collect(groupingBy(Artifact::getVersion, mapping(Artifact::toString, toList())));
+                .collect(groupingBy(Artifact::getEffectiveVersion, toList()));
 
-        return checkUsage(versionLocations);
-    }
+        // byVersion maps from property to list of artifacts
+        // now can go through property keys and check usage
 
-    private static Stream<Dependency> directDependencies(ModelBase model) {
-        return Optional.ofNullable(model.getDependencies())
-                .stream()
-                .flatMap(Collection::stream);
-    }
-
-    private static Stream<Dependency> managedDependencies(ModelBase model) {
-        return Optional.ofNullable(model.getDependencyManagement())
-                .map(DependencyManagement::getDependencies)
-                .stream()
-                .flatMap(Collection::stream);
-    }
-
-    private static Stream<Extension> extensions(Model model) {
-        return Optional.ofNullable(model.getBuild())
-                .map(Build::getExtensions)
-                .stream()
-                .flatMap(Collection::stream);
-    }
-
-    private static Stream<ReportPlugin> reportPlugins(ModelBase model) {
-        return Optional.ofNullable(model.getReporting())
-                .map(Reporting::getPlugins)
-                .stream()
-                .flatMap(Collection::stream);
-    }
-
-    private static Stream<Plugin> managedPlugins(Model model) {
-        return Optional.ofNullable(model.getBuild())
-                .map(BuildBase::getPluginManagement)
-                .map(PluginManagement::getPlugins)
-                .stream()
-                .flatMap(Collection::stream);
-    }
-
-    private static Stream<Plugin> managedPlugins(Profile model) {
-        return Optional.ofNullable(model.getBuild())
-                .map(BuildBase::getPluginManagement)
-                .map(PluginManagement::getPlugins)
-                .stream()
-                .flatMap(Collection::stream);
-    }
-
-    private static Stream<Plugin> directPlugins(Model model) {
-        return Optional.ofNullable(model.getBuild())
-                .map(BuildBase::getPlugins)
-                .stream()
-                .flatMap(Collection::stream);
-    }
-
-    private static Stream<Plugin> directPlugins(Profile profile) {
-        return Optional.ofNullable(profile.getBuild())
-                .map(BuildBase::getPlugins)
-                .stream()
-                .flatMap(Collection::stream);
-    }
-
-    private static Stream<Dependency> pluginDependencies(Plugin plugin) {
-        return Optional.ofNullable(plugin.getDependencies())
-                .stream()
-                .flatMap(Collection::stream);
-    }
-
-    private static Stream<Artifact> scanProfiles(Model model) {
-        if (model.getProfiles() == null) return Stream.empty();
-
-        Stream.Builder<Stream<Artifact>> result = Stream.builder();
-        for (Profile profile : model.getProfiles()) {
-            // TODO what if the property is in the profile?
-            String profileId = profile.getId();
-            result.add(directDependencies(profile).map(dep -> new Artifact(dep, false, profileId)));
-            result.add(managedDependencies(profile).map(dep -> new Artifact(dep, true, profileId)));
-            result.add(scanPlugins(directPlugins(profile), false, profileId));
-            result.add(scanPlugins(managedPlugins(profile), true, profileId));
-            result.add(reportPlugins(profile).map(plugin -> new Artifact(plugin, profileId)));
-        }
-
-        return result.build().flatMap(identity());
-    }
-
-    /**
-     * TODO Should plugin dependencies show as a different type than regular dependencies?
-     * TODO Consider whether plugin dependencies should be considered "managed" when the plugin is managed.
-     */
-    private static Stream<Artifact> scanPlugins(Stream<Plugin> items, boolean managed, String profile) {
-        return items.flatMap(p ->
-                prepend(new Artifact(p, managed, profile), pluginDependencies(p).map(d -> new Artifact(d, managed, profile)))
-        );
-    }
-
-    /**
-     * Check for version property usage violations.
-     *
-     * <p>This implementation normalizes versions to a canonical key so that
-     * occurrences that use a property (e.g. ${pmd.version}) and occurrences
-     * that use the literal value (e.g. 7.19.0) are treated as the same
-     * version when the literal equals a declared property value. This avoids
-     * false positives where the effective value comes from a property but the
-     * model contains mixed references.
-     *
-     * @return list of violation messages
-     */
-    private Stream<String> checkUsage(Map<String, List<String>> versionLocations) {
-        Map<String, Integer> versionCounts
-                = versionLocations.entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().size()));
-
-        // Gather declared properties (use effective project properties so inherited
-        // properties are included)
-        Map<String, String> definedProperties = new HashMap<>();
-        if (model.getProperties() != null) {
-            model.getProperties().forEach((k, v) ->
-                    definedProperties.put(k.toString(), v != null ? v.toString() : ""));
-        }
-
-        // Build reverse map from property value -> property name (first one wins)
-        Map<String, String> valueToProperty = new HashMap<>();
-        for (Map.Entry<String, String> e : definedProperties.entrySet()) {
-            valueToProperty.putIfAbsent(e.getValue(), e.getKey());
-        }
-
-        // Canonicalize versions: map raw version string -> canonical key
-        // canonical key format:
-        //  - "prop:<name>" when a property is (or should be) used
-        //  - "ver:<literal>" for plain literals with no matching property
-        Map<String, Integer> canonicalCounts = new HashMap<>();
-        Map<String, String> canonicalRepresentative = new HashMap<>();
-
-        for (Map.Entry<String, Integer> entry : versionCounts.entrySet()) {
-            String version = entry.getKey();
-            int count = entry.getValue();
-
-            Matcher matcher = PROPERTY_PATTERN.matcher(version);
-            String canonical;
-            if (matcher.matches()) {
-                String propertyName = matcher.group(1);
-                canonical = "prop:" + propertyName;
-                canonicalRepresentative.putIfAbsent(canonical, "${" + propertyName + "}");
-            } else if (valueToProperty.containsKey(version)) {
-                // Literal equals a declared property value -> treat as that property
-                String propName = valueToProperty.get(version);
-                canonical = "prop:" + propName;
-                canonicalRepresentative.putIfAbsent(canonical, "${" + propName + "}");
-            } else {
-                canonical = "ver:" + version;
-                canonicalRepresentative.putIfAbsent(canonical, version);
-            }
-
-            canonicalCounts.put(canonical, canonicalCounts.getOrDefault(canonical, 0) + count);
-        }
-
-        return canonicalCounts.entrySet().stream()
-                .peek(e -> logArtefactVersion(e.getKey(), e.getValue(), canonicalRepresentative.get(e.getKey()), versionLocations))
-                .map(entry -> {
-                    String key = entry.getKey();
-                    if (key.startsWith("ver:")) {
-                        return checkExplicitVersion(versionLocations, entry.getValue(), canonicalRepresentative, key);
-                    } else if (key.startsWith("prop:")) {
-                        return checkProperty(key, definedProperties, entry.getValue());
+        return usages.entrySet().stream()
+                .map(e -> {
+                    String effectiveVersion = e.getKey();
+                    List<Artifact> artifacts = e.getValue();
+                    long propertyCount = artifacts.stream()
+                            .filter(Artifact::hasImplicitVersion)
+                            .count();
+                    if (artifacts.size() > 1) {
+                        if (propertyCount == 0) return missingPropertyViolation(effectiveVersion, artifacts);
+                        if (propertyCount < artifacts.size()) return unusedPropertyViolation(effectiveVersion, artifacts);
+                    } else if (artifacts.size() == 1) {
+                        if (propertyCount == 1) return redundantPropertyViolation(artifacts.get(0));
                     }
                     return null;
                 }).filter(Objects::nonNull);
     }
 
-    private static String checkProperty(String key, Map<String, String> definedProperties, int count) {
-        if (count > 1) return null;
-
-        String propName = key.substring(5);
-        String propValue = definedProperties.getOrDefault(propName, "?");
-        return String.format(
-                "Version property '${%s}' (value: %s) is used but appears only once. " +
-                        "Remove the property and use the version directly, or ensure it's used in multiple places.",
-                propName, propValue);
-    }
-
-    private String checkExplicitVersion(Map<String, List<String>> versionLocations, int count, Map<String, String> canonicalRepresentative, String key) {
-        if (count > 1 && requirePropertiesForDuplicates) {
-            String literal = canonicalRepresentative.get(key);
-            List<String> locs = versionLocations.getOrDefault(literal, Collections.emptyList());
-            return String.format(
-                    "Version '%s' appears %d times but is not using a property. Create a property and reference it in all occurrences. Locations: %s",
-                    literal, count, locs);
-        }
+    private String fetchVersion(Artifact a, Map<String, List<Artifact>> byKey) {
+        List<Artifact> artifacts = byKey.getOrDefault(a.fullKey(), List.of());
+        if (!artifacts.isEmpty()) return artifacts.get(0).getVersion();
+        getLog().warn("Could not find artifact in effectiveModel for " + a.fullKey());
         return null;
     }
 
-    private void logArtefactVersion(String key, Integer count, String representative, Map<String, List<String>> versionLocations) {
-        List<String> orDefault = versionLocations.getOrDefault(representative, Collections.emptyList());
-        getLog().debug("[VersionPropertyRule DEBUG] canonical='" + key + "' count=" + count + " repr='" + representative + "' locations='" + orDefault + "'");
+    private String redundantPropertyViolation(Artifact artifact) {
+        if (allowSingleUseOfProperty) return null;
+
+        return String.format(
+                "Version property %s=%s is only used once. Please inline the property version.",
+                fromPlaceHolder(artifact.getVersion()), artifact.getEffectiveVersion());
+    }
+
+    /**
+     * The artifacts could either have the explicit version or a reference to the property.
+     * Where the property represents the same version.
+     * If the property uses a different version than the explicit version,
+     * then that would be detected at the moment - could be a different violation (property value doesn't match usage).
+     *
+     * <p>Could the artifacts refer to different properties that have the same value?
+     * That's possible due to coincidental properties - another edge case to consider.
+     */
+    private static String unusedPropertyViolation(String effectiveVersion, List<Artifact> artifacts) {
+        String unused = artifacts.stream()
+                .filter(Artifact::hasExplicitVersion)
+                .map(Artifact::key)
+                .collect(joining(", "));
+        String propertyName = artifacts.stream()
+                .filter(Artifact::hasImplicitVersion)
+                .map(Artifact::getVersion)
+                .map(PropertyUtil::fromPlaceHolder)
+                .findAny().orElse("unknown");
+        return String.format(
+                "Version property %s=%s exists but is not used everywhere. Unused locations: %s",
+                propertyName, effectiveVersion, unused);
+    }
+
+    private String missingPropertyViolation(String version, List<Artifact> artifacts) {
+        if (!requirePropertiesForDuplicates) return null;
+
+        String unused = artifacts.stream()
+                .filter(a -> Objects.equals(a.getVersion(), a.getEffectiveVersion()))
+                .map(Artifact::key)
+                .collect(joining(", "));
+        return String.format(
+                "Version '%s' exists in multiple locations, please extract a version property. " +
+                        "Unused locations: %s",
+                version, unused);
     }
 
     /**
@@ -318,35 +170,5 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
         // Match version ranges like [1.0,2.0) or (1.0,2.0]
         // noinspection RegExpRedundantEscape
         return version.matches("[\\[\\(].*[\\]\\)]");
-    }
-
-    /**
-     * Set whether properties are required for duplicate versions.
-     *
-     * @param requirePropertiesForDuplicates true if required
-     */
-    public void setRequirePropertiesForDuplicates(
-            boolean requirePropertiesForDuplicates) {
-        this.requirePropertiesForDuplicates = requirePropertiesForDuplicates;
-    }
-
-    /**
-     * Set whether to ignore parent version references.
-     *
-     * @param ignoreParentVersion true if parent version should be ignored
-     */
-    @SuppressWarnings("unused")
-    public void setIgnoreParentVersion(boolean ignoreParentVersion) {
-        this.ignoreParentVersion = ignoreParentVersion;
-    }
-
-    /**
-     * Set the list of versions to exclude from checks.
-     *
-     * @param excludeVersions list of version strings to exclude
-     */
-    @SuppressWarnings("unused")
-    public void setExcludeVersions(List<String> excludeVersions) {
-        this.excludeVersions = excludeVersions != null ? excludeVersions : new ArrayList<>();
     }
 }

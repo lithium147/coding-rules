@@ -97,7 +97,10 @@ public class ModelScanner {
      */
     private static Stream<Artifact> scanPlugins(Stream<Plugin> items, boolean managed, String profile) {
         return items.flatMap(p ->
-                prepend(new Artifact(p, managed, profile), pluginDependencies(p).map(d -> new Artifact(d, managed, profile)))
+                prepend(
+                        new Artifact(p, managed, profile),
+                        pluginDependencies(p).map(d -> new Artifact(d, managed, profile))
+                )
         );
     }
 
