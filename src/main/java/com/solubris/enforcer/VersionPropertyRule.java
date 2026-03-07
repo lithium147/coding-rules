@@ -41,9 +41,10 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
     private final Model originalModel;
     private final Model effectiveModel;
 
-    private boolean requirePropertiesForDuplicates = true;
-    private boolean ignoreParentVersion = true;
-    private List<String> excludeVersions = new ArrayList<>();
+    protected boolean allowSingleUseOfProperty = false;
+    protected boolean requirePropertiesForDuplicates = true;
+    protected boolean ignoreParentVersion = true;
+    protected List<String> excludeVersions = new ArrayList<>();
 
     @SuppressWarnings("unused")
     @Inject
@@ -105,7 +106,9 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
         return "";
     }
 
-    private static String redundantPropertyViolation(String version, Artifact artifact) {
+    private String redundantPropertyViolation(String version, Artifact artifact) {
+        if (allowSingleUseOfProperty) return null;
+
         return String.format(
                 "Version property '%s' (value: %s) is only used once. " +
                         "Please inline the property version.",
@@ -123,7 +126,9 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
                 version, version, unused);  // TODO version is not right here
     }
 
-    private static String missingPropertyViolation(String version, List<Artifact> artifacts) {
+    private String missingPropertyViolation(String version, List<Artifact> artifacts) {
+        if (!requirePropertiesForDuplicates) return null;
+
         String unused = artifacts.stream()
                 .filter(a -> Objects.equals(a.getVersion(), a.getEffectiveVersion()))
                 .map(Artifact::key)

@@ -1,5 +1,6 @@
 package com.solubris.enforcer;
 
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import org.apache.maven.model.Build;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.DependencyManagement;
@@ -18,6 +19,14 @@ import java.util.stream.Stream;
 
 public class ModelStubber {
     private static final RandomGenerator random = new Random();
+
+    private final Model originalModel;
+    private final Model effectiveModel;
+
+    public ModelStubber(Model originalModel, Model effectiveModel) {
+        this.originalModel = originalModel;
+        this.effectiveModel = effectiveModel;
+    }
 
     public static Dependency dependencyOf(String groupId, String artifactId, String version) {
         Dependency result = new Dependency();
@@ -51,11 +60,10 @@ public class ModelStubber {
         return result;
     }
 
-    public static void withAllTypes(Model model, Supplier<String> versionProvider) {
-        model.addDependency(dependencyOf("junit", "junit", versionProvider.get()));
-        DependencyManagement dependencyManagement = new DependencyManagement();
-        dependencyManagement.addDependency(dependencyOf("org.junit.jupiter", "jupiter-api", versionProvider.get()));
-        model.setDependencyManagement(dependencyManagement);
+    public void withAllTypes(Supplier<String> versionProvider) {
+        withDependency("junit", "junit", versionProvider.get());
+        withManagedDependency("org.junit.jupiter", "jupiter-api", versionProvider.get());
+
         Plugin plugin = pluginOf("org.apache.maven.plugins", "maven-compiler-plugin", versionProvider.get());
         plugin.addDependency(dependencyOf("org.apache.maven", "maven-plugin-api", versionProvider.get()));
         Build build = new Build();
@@ -66,13 +74,45 @@ public class ModelStubber {
         build.setPluginManagement(pluginManagement);
         Reporting reporting = new Reporting();
         reporting.addPlugin(reportPluginOf("org.apache.maven.plugins", "maven-site-plugin", versionProvider.get()));
-        model.setReporting(reporting);
-        model.setBuild(build);
+        originalModel.setReporting(reporting);
+        originalModel.setBuild(build);
+        effectiveModel.setReporting(reporting);
+        effectiveModel.setBuild(build);
     }
 
     public static String randomVersion() {
         return Stream.generate(() -> String.valueOf(random.nextInt(10)))
                 .limit(3)
                 .collect(Collectors.joining("."));
+    }
+
+    @CanIgnoreReturnValue
+    private ModelStubber withManagedDependency(String groupId, String artifactId, String version) {
+        DependencyManagement dependencyManagement = new DependencyManagement();
+        dependencyManagement.addDependency(dependencyOf(groupId, artifactId, version));
+        originalModel.setDependencyManagement(dependencyManagement);
+        effectiveModel.setDependencyManagement(dependencyManagement);
+
+        return this;
+    }
+
+    @CanIgnoreReturnValue
+    public ModelStubber withDependency(String groupId, String artifactId, String version, String effectiveVersion) {
+        effectiveModel.addDependency(dependencyOf(groupId, artifactId, effectiveVersion));
+        originalModel.addProperty(version, effectiveVersion);
+        version = asPlaceHolder(version);
+        originalModel.addDependency(dependencyOf(groupId, artifactId, version));
+        return this;
+    }
+
+    @CanIgnoreReturnValue
+    public ModelStubber withDependency(String groupId, String artifactId, String version) {
+        effectiveModel.addDependency(dependencyOf(groupId, artifactId, version));
+        originalModel.addDependency(dependencyOf(groupId, artifactId, version));
+        return this;
+    }
+
+    private static String asPlaceHolder(String version) {
+        return String.format("${%s}", version);
     }
 }
