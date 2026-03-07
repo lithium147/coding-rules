@@ -26,7 +26,7 @@ public class VersionPropertyRuleCanonicalTest {
         VersionPropertyRule rule = new VersionPropertyRule(model, null);
         rule.setLog(mock(EnforcerLogger.class));
 
-        Stream<String> violations = rule.scanProperties();
+        Stream<String> violations = rule.scan();
 
         // Assert that we do not get a literal-duplicate violation because property exists with same value
         boolean hasLiteralDuplicate = violations.anyMatch(s -> s.contains("appears"));
