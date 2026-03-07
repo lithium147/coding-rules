@@ -26,6 +26,7 @@ public class ExcessiveMockingOnSameObjectRule extends AbstractJavaRule {
                     .defaultValue(3)
                     .build();
 
+    @SuppressWarnings("PMD.ConstructorCallsOverridableMethod")
     public ExcessiveMockingOnSameObjectRule() {
         definePropertyDescriptor(MAX_ALLOWED_DESCRIPTOR);
     }
