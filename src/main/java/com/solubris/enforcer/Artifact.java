@@ -76,4 +76,11 @@ public class Artifact {
     public boolean hasImplicitVersion() {
         return !Objects.equals(getVersion(), getEffectiveVersion());
     }
+
+    /**
+     * Uniqueness is used to avoid violations on coincidental artifact versions.
+     */
+    public String uniqueness() {
+        return String.join(":", getGroupId(), getEffectiveVersion());
+    }
 }
