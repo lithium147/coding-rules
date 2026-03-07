@@ -15,6 +15,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import static com.solubris.enforcer.ModelScanner.modelFrom;
 import static com.solubris.enforcer.ModelScanner.scanModel;
 import static com.solubris.enforcer.Violations.throwViolations;
 import static java.util.Collections.emptyList;
@@ -39,7 +40,7 @@ public class UnusedPropertyRule extends AbstractEnforcerRule {
     @SuppressWarnings("unused")
     @Inject
     public UnusedPropertyRule(MavenSession session) {
-        this(ModelScanner.modelFrom(session), session.getCurrentProject().getModel());
+        this(modelFrom(session), session.getCurrentProject().getModel());
     }
 
     protected UnusedPropertyRule(Model originalModel, Model effectiveModel) {

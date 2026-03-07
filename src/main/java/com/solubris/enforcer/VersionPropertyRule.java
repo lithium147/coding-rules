@@ -4,7 +4,6 @@ import org.apache.maven.enforcer.rule.api.AbstractEnforcerRule;
 import org.apache.maven.enforcer.rule.api.EnforcerRuleException;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.model.Model;
-import org.apache.maven.project.MavenProject;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -15,6 +14,7 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import static com.solubris.enforcer.ModelScanner.modelFrom;
 import static com.solubris.enforcer.ModelScanner.scanModel;
 import static com.solubris.enforcer.PropertyUtil.fromPlaceHolder;
 import static com.solubris.enforcer.Violations.throwViolations;
@@ -57,14 +57,6 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
         this.effectiveModel = effectiveModel;
     }
 
-    private static Model modelFrom(MavenSession session) {
-        // Use original model to avoid implicit/default plugins and dependencies
-        // that Maven adds automatically (e.g., default compiler plugin)
-        MavenProject project = session.getCurrentProject();
-        Model originalModel = project.getOriginalModel();
-        return originalModel != null ? originalModel : project.getModel();
-    }
-
     @Override
     public void execute() throws EnforcerRuleException {
         throwViolations(scan(), "Found {0} version violation(s):");
@@ -78,14 +70,14 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
                 .map(a -> a.withEffectiveVersion(fetchVersion(a, byKey)))
                 .filter(a -> a.getEffectiveVersion() != null)
                 .filter(artifact -> !isExcluded(artifact.getVersion()))
-                .collect(groupingBy(Artifact::getEffectiveVersion, toList()));
+                .collect(groupingBy(Artifact::uniqueness, toList()));
 
         // byVersion maps from property to list of artifacts
         // now can go through property keys and check usage
 
         return usages.entrySet().stream()
                 .map(e -> {
-                    String effectiveVersion = e.getKey();
+                    String effectiveVersion = e.getKey().split(":")[1];
                     List<Artifact> artifacts = e.getValue();
                     long propertyCount = artifacts.stream()
                             .filter(Artifact::hasImplicitVersion)
@@ -119,7 +111,8 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
      * The artifacts could either have the explicit version or a reference to the property.
      * Where the property represents the same version.
      * If the property uses a different version than the explicit version,
-     * then that would be detected at the moment - could be a different violation (property value doesn't match usage).
+     * then that would not be detected at the moment
+     * - could be a different violation (property value doesn't match usage).
      *
      * <p>Could the artifacts refer to different properties that have the same value?
      * That's possible due to coincidental properties - another edge case to consider.
@@ -139,17 +132,17 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
                 propertyName, effectiveVersion, unused);
     }
 
-    private String missingPropertyViolation(String version, List<Artifact> artifacts) {
+    private String missingPropertyViolation(String effectiveVersion, List<Artifact> artifacts) {
         if (!requirePropertiesForDuplicates) return null;
 
         String unused = artifacts.stream()
-                .filter(a -> Objects.equals(a.getVersion(), a.getEffectiveVersion()))
+                .filter(Artifact::hasExplicitVersion)   // TODO is this required since all artifacts at this point should be explicitly versioned
                 .map(Artifact::key)
                 .collect(joining(", "));
         return String.format(
                 "Version '%s' exists in multiple locations, please extract a version property. " +
                         "Unused locations: %s",
-                version, unused);
+                effectiveVersion, unused);
     }
 
     /**
