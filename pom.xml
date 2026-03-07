@@ -16,6 +16,7 @@
         <!--suppress XmlUnresolvedReference -->
         <skipChecks>${skipTests}</skipChecks>
 
+        <unusedPropertyRule.suppressions>junit.version,kept-for-compat.version</unusedPropertyRule.suppressions>
         <pmd.version>7.22.0</pmd.version>
         <junit.version>6.0.3</junit.version>
     </properties>
@@ -107,6 +108,26 @@
             <artifactId>spotbugs-annotations</artifactId>
             <version>4.8.6</version>
         </dependency>
+
+        <!-- Lombok for code generation (used by ArtifactV2) -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.36</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.code.findbugs</groupId>
+            <artifactId>findbugs-annotations</artifactId>
+            <version>3.0.1</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.checkerframework</groupId>
+            <artifactId>checker-qual</artifactId>
+            <version>3.48.4</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -192,6 +213,7 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <!--suppress MavenModelInspection -->
                     <skip>${skipChecks}</skip>
                     <failOnViolation>false</failOnViolation>
                     <includeTestSourceDirectory>true</includeTestSourceDirectory>
@@ -208,6 +230,7 @@
                 <artifactId>maven-pmd-plugin</artifactId>
                 <version>3.26.0</version>
                 <configuration>
+                    <!--suppress MavenModelInspection -->
                     <skip>${skipChecks}</skip>
                     <failOnViolation>false</failOnViolation>
                     <printFailingErrors>true</printFailingErrors>
@@ -287,11 +310,13 @@
                 <artifactId>maven-enforcer-plugin</artifactId>
                 <version>3.6.2</version>
                 <configuration>
+                    <!--suppress MavenModelInspection -->
                     <skip>${skipChecks}</skip>
                     <rules>
                         <versionPropertyRule>
                             <requirePropertiesForDuplicates>true</requirePropertiesForDuplicates>
                         </versionPropertyRule>
+                        <bomImportScopeRule/>
                     </rules>
                 </configuration>
                 <executions>

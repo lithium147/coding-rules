@@ -22,10 +22,6 @@ import static org.apache.maven.artifact.ArtifactUtils.versionlessKey;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
-/**
- * Test cases for VersionPropertyRule enforcer rule.
- */
-@Disabled
 class VersionPropertyRuleTest {
     private final Model model = new Model();
     private final MavenProject project = new MavenProject();

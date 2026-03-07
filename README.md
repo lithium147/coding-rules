@@ -1,6 +1,7 @@
 
 # TODO create syntactic sugar library
 
+# TODO's
 # ${project.version} can be excluded from the enforcer rule as it is a special property that is commonly used
 # in fact, ${project.*} can be excluded
 
@@ -59,4 +60,12 @@ Feels like these rules are intrinsically linked and should be part of the same r
 as they both deal with the same concept of properties and their usages.
 
 Even so, can ensure the implementation is cleanly separated within the same rule
+
+
+## collect to set should normally be replace with toUnmodifiableSet()
+eg:
+.collect(Collectors.toSet());
+replace with:
+.collect(toUnmodifiableSet());
+
 
