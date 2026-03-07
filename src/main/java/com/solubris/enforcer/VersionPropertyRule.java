@@ -94,7 +94,7 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
                         if (propertyCount == 0) return missingPropertyViolation(effectiveVersion, artifacts);
                         if (propertyCount < artifacts.size()) return unusedPropertyViolation(effectiveVersion, artifacts);
                     } else if (artifacts.size() == 1) {
-                        if (propertyCount == 1) return redundantPropertyViolation(effectiveVersion, artifacts.get(0));
+                        if (propertyCount == 1) return redundantPropertyViolation(artifacts.get(0));
                     }
                     return null;
                 }).filter(Objects::nonNull);
@@ -107,12 +107,12 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
         return null;
     }
 
-    private String redundantPropertyViolation(String version, Artifact artifact) {
+    private String redundantPropertyViolation(Artifact artifact) {
         if (allowSingleUseOfProperty) return null;
 
         return String.format(
                 "Version property %s=%s is only used once. Please inline the property version.",
-                fromPlaceHolder(version), artifact.getEffectiveVersion());
+                fromPlaceHolder(artifact.getVersion()), artifact.getEffectiveVersion());
     }
 
     /**
