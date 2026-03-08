@@ -3,7 +3,6 @@ package com.solubris.enforcer;
 import org.apache.maven.enforcer.rule.api.EnforcerLogger;
 import org.apache.maven.enforcer.rule.api.EnforcerRuleException;
 import org.apache.maven.model.Build;
-import org.apache.maven.model.DependencyManagement;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginManagement;
@@ -38,45 +37,19 @@ class UnusedPropertyRuleTest {
     }
 
     @Test
-    void versionPropertyUsedByDirectDependencyPasses() {
+    void versionPropertyUsedByDependencyPasses() {
         stubber.withDependency("org.junit", "junit", "junit.version", "4.13.2");
+        stubber.withManagedDependency("org.mockito", "mockito-core", "mockito.version", "5.22.0");
 
         Stream<String> violations = rule.scan();
 
         assertThat(violations).isEmpty();
     }
-
-    @Test
-    void versionPropertyUsedByManagedDependencyPasses() {
-        originalModel.addProperty("junit.version", "5.9.3");
-        DependencyManagement originalDepMgmt = new DependencyManagement();
-        originalDepMgmt.addDependency(dependencyOf("org.junit", "junit", "${junit.version}"));
-        originalModel.setDependencyManagement(originalDepMgmt);
-
-        DependencyManagement effectiveDepMgmt = new DependencyManagement();
-        effectiveDepMgmt.addDependency(dependencyOf("org.junit", "junit", "5.9.3"));
-        effectiveModel.setDependencyManagement(effectiveDepMgmt);
-
-        Stream<String> violations = rule.scan();
-
-        assertThat(violations).isEmpty();
-    }
-//    <groupId>org.jacoco</groupId>
-//    <artifactId>jacoco-maven-plugin</artifactId>
 
     @Test
     void versionPropertyUsedByPluginPasses() {
-        stubber.withDependency("junit", "junit", "junit.version", "4.13.2");
-        stubber.withDependency("org.junit.jupiter", "junit-jupiter-api", "junit.version", "4.13.2");
-
-        originalModel.addProperty("compiler.version", "3.13.0");
-        Build originalBuild = new Build();
-        originalBuild.addPlugin(pluginOf("apache.maven.plugins", "maven-compiler-plugin", "${compiler.version}"));
-        originalModel.setBuild(originalBuild);
-
-        Build effectiveBuild = new Build();
-        effectiveBuild.addPlugin(pluginOf("apache.maven.plugins", "maven-compiler-plugin", "3.13.0"));
-        effectiveModel.setBuild(effectiveBuild);
+        stubber.withPlugin("apache.maven.plugins", "maven-compiler-plugin", "compiler.version", "3.13.0");
+        stubber.withManagedPlugin("org.jacoco", "jacoco-maven-plugin", "jacoco.version", "0.8.12");
 
         Stream<String> violations = rule.scan();
 
