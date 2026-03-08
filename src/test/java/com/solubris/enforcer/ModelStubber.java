@@ -126,11 +126,13 @@ public class ModelStubber {
     public void withDependency(String groupId, String artifactId, String version, String effectiveVersion) {
         effectiveModel.addDependency(dependencyOf(groupId, artifactId, effectiveVersion));
         originalModel.addProperty(version, effectiveVersion);
-        originalModel.addDependency(dependencyOf(groupId, artifactId, asPlaceHolder(version)));    }
+        originalModel.addDependency(dependencyOf(groupId, artifactId, asPlaceHolder(version)));
+    }
 
     public void withDependency(String groupId, String artifactId, String version) {
         effectiveModel.addDependency(dependencyOf(groupId, artifactId, version));
-        originalModel.addDependency(dependencyOf(groupId, artifactId, version));    }
+        originalModel.addDependency(dependencyOf(groupId, artifactId, version));
+    }
 
     public void withPlugin(String groupId, String artifactId, String version, String effectiveVersion) {
         Build build = buildFrom(effectiveModel);

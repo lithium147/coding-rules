@@ -1,6 +1,9 @@
 package com.solubris;
 
 public class NullSugar {
+    private NullSugar() {
+    }
+
     @SafeVarargs
     public static <T> T coalesce(T... t) {
         for (T candidate : t) {
