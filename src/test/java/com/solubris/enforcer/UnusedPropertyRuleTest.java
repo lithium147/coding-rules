@@ -5,14 +5,12 @@ import org.apache.maven.enforcer.rule.api.EnforcerRuleException;
 import org.apache.maven.model.Build;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Plugin;
-import org.apache.maven.model.PluginManagement;
 import org.apache.maven.model.Reporting;
 import org.junit.jupiter.api.Test;
 
 import java.util.stream.Stream;
 
 import static com.solubris.enforcer.ModelStubber.dependencyOf;
-import static com.solubris.enforcer.ModelStubber.extensionOf;
 import static com.solubris.enforcer.ModelStubber.pluginOf;
 import static com.solubris.enforcer.ModelStubber.reportPluginOf;
 import static com.solubris.enforcer.UnusedPropertyRule.SUPPRESSIONS_PROPERTY;
@@ -57,35 +55,8 @@ class UnusedPropertyRuleTest {
     }
 
     @Test
-    void versionPropertyUsedByManagedPluginPasses() {
-        originalModel.addProperty("compiler.version", "3.13.0");
-        Build originalBuild = new Build();
-        PluginManagement originalPluginMgmt = new PluginManagement();
-        originalPluginMgmt.addPlugin(pluginOf("apache.maven.plugins", "maven-compiler-plugin", "${compiler.version}"));
-        originalBuild.setPluginManagement(originalPluginMgmt);
-        originalModel.setBuild(originalBuild);
-
-        Build effectiveBuild = new Build();
-        PluginManagement effectivePluginMgmt = new PluginManagement();
-        effectivePluginMgmt.addPlugin(pluginOf("apache.maven.plugins", "maven-compiler-plugin", "3.13.0"));
-        effectiveBuild.setPluginManagement(effectivePluginMgmt);
-        effectiveModel.setBuild(effectiveBuild);
-
-        Stream<String> violations = rule.scan();
-
-        assertThat(violations).isEmpty();
-    }
-
-    @Test
     void versionPropertyUsedByExtensionPasses() {
-        originalModel.addProperty("ext.version", "1.0.0");
-        Build originalBuild = new Build();
-        originalBuild.addExtension(extensionOf("org.example", "my-extension", "${ext.version}"));
-        originalModel.setBuild(originalBuild);
-
-        Build effectiveBuild = new Build();
-        effectiveBuild.addExtension(extensionOf("org.example", "my-extension", "1.0.0"));
-        effectiveModel.setBuild(effectiveBuild);
+        stubber.withExtension("org.example", "my-extension", "ext.version", "1.0.0");
 
         Stream<String> violations = rule.scan();
 

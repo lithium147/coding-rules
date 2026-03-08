@@ -182,4 +182,24 @@ public class ModelStubber {
         build.setPluginManagement(pluginManagement);
         originalModel.setBuild(build);
     }
+
+    public void withExtension(String groupId, String artifactId, String version, String effectiveVersion) {
+        Build build = buildFrom(effectiveModel);
+        build.addExtension(extensionOf(groupId, artifactId, effectiveVersion));
+        effectiveModel.setBuild(build);
+
+        build = buildFrom(originalModel);
+        build.addExtension(extensionOf(groupId, artifactId, asPlaceHolder(version)));
+        originalModel.setBuild(build);
+        originalModel.addProperty(version, effectiveVersion);
+    }
+
+    public void withExtension(String groupId, String artifactId, String version) {
+        Build build = buildFrom(effectiveModel);
+        build.addExtension(extensionOf(groupId, artifactId, version));
+        effectiveModel.setBuild(build);
+        build = buildFrom(originalModel);
+        build.addExtension(extensionOf(groupId, artifactId, version));
+        originalModel.setBuild(build);
+    }
 }
