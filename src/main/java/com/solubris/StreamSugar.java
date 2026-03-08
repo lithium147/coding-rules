@@ -5,6 +5,9 @@ import java.util.stream.Stream;
 import static java.util.function.Function.identity;
 
 public class StreamSugar {
+    private StreamSugar() {
+    }
+
     public static <T> Stream<T> prepend(T t, Stream<T> tStream) {
         return Stream.concat(Stream.of(t), tStream);
     }
