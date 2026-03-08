@@ -7,8 +7,8 @@
     <groupId>com.solubris</groupId>
     <artifactId>coding-rules</artifactId>
     <version>1.0.0-SNAPSHOT</version>
-    <name>Custom PMD Rules - Excessive Mocking</name>
-    <description>Custom PMD rule to detect excessive Mockito when() calls on the same mock object</description>
+    <name>Coding Rules</name>
+    <description>Custom rules to help coding - PMD/Checkstyle/Spotbugs/Enforcer</description>
 
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
