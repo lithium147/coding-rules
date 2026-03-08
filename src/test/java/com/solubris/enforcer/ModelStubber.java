@@ -77,12 +77,13 @@ public class ModelStubber {
         PluginManagement pluginManagement = new PluginManagement();
         pluginManagement.addPlugin(pluginOf("org.apache.maven.plugins", "surefire-plugin", versionProvider.get()));
         build.setPluginManagement(pluginManagement);
+        originalModel.setBuild(build);
+        effectiveModel.setBuild(build);
+
         Reporting reporting = new Reporting();
         reporting.addPlugin(reportPluginOf("org.apache.maven.plugins", "maven-site-plugin", versionProvider.get()));
         originalModel.setReporting(reporting);
-        originalModel.setBuild(build);
         effectiveModel.setReporting(reporting);
-        effectiveModel.setBuild(build);
     }
 
     /**
@@ -101,11 +102,25 @@ public class ModelStubber {
     }
 
     @CanIgnoreReturnValue
+    public ModelStubber withManagedDependency(String groupId, String artifactId, String version, String effectiveVersion) {
+        DependencyManagement dependencyManagement = new DependencyManagement();
+        dependencyManagement.addDependency(dependencyOf(groupId, artifactId, effectiveVersion));
+        effectiveModel.setDependencyManagement(dependencyManagement);
+
+        originalModel.addProperty(version, effectiveVersion);
+        dependencyManagement = new DependencyManagement();
+        dependencyManagement.addDependency(dependencyOf(groupId, artifactId, asPlaceHolder(version)));
+        originalModel.setDependencyManagement(dependencyManagement);
+
+        return this;
+    }
+
+    @CanIgnoreReturnValue
     public ModelStubber withManagedDependency(String groupId, String artifactId, String version) {
         DependencyManagement dependencyManagement = new DependencyManagement();
         dependencyManagement.addDependency(dependencyOf(groupId, artifactId, version));
-        originalModel.setDependencyManagement(dependencyManagement);
         effectiveModel.setDependencyManagement(dependencyManagement);
+        originalModel.setDependencyManagement(dependencyManagement);
 
         return this;
     }
@@ -114,8 +129,7 @@ public class ModelStubber {
     public ModelStubber withDependency(String groupId, String artifactId, String version, String effectiveVersion) {
         effectiveModel.addDependency(dependencyOf(groupId, artifactId, effectiveVersion));
         originalModel.addProperty(version, effectiveVersion);
-        version = asPlaceHolder(version);
-        originalModel.addDependency(dependencyOf(groupId, artifactId, version));
+        originalModel.addDependency(dependencyOf(groupId, artifactId, asPlaceHolder(version)));
         return this;
     }
 

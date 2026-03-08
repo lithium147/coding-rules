@@ -3,7 +3,6 @@ package com.solubris.enforcer;
 import org.apache.maven.enforcer.rule.api.EnforcerLogger;
 import org.apache.maven.enforcer.rule.api.EnforcerRuleException;
 import org.apache.maven.model.Build;
-import org.apache.maven.model.DependencyManagement;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginManagement;
@@ -48,14 +47,7 @@ class UnusedPropertyRuleTest {
 
     @Test
     void versionPropertyUsedByManagedDependencyPasses() {
-        originalModel.addProperty("junit.version", "5.9.3");
-        DependencyManagement originalDepMgmt = new DependencyManagement();
-        originalDepMgmt.addDependency(dependencyOf("org.junit", "junit", "${junit.version}"));
-        originalModel.setDependencyManagement(originalDepMgmt);
-
-        DependencyManagement effectiveDepMgmt = new DependencyManagement();
-        effectiveDepMgmt.addDependency(dependencyOf("org.junit", "junit", "5.9.3"));
-        effectiveModel.setDependencyManagement(effectiveDepMgmt);
+        stubber.withManagedDependency("org.junit", "junit", "junit.version", "5.9.3");
 
         Stream<String> violations = rule.scan();
 
