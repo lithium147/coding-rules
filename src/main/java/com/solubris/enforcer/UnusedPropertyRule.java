@@ -13,11 +13,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import static com.solubris.enforcer.ModelScanner.modelFrom;
 import static com.solubris.enforcer.ModelScanner.scanModel;
 import static com.solubris.enforcer.Violations.throwViolations;
 import static java.util.Collections.emptyList;
+import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toUnmodifiableSet;
@@ -36,10 +40,13 @@ public class UnusedPropertyRule extends AbstractEnforcerRule {
     private final Model originalModel;
     private final Model effectiveModel;
 
+    protected String includesPattern = ".*\\.version";
+    protected String excludesPattern = "project\\..*";
+
     @SuppressWarnings("unused")
     @Inject
     public UnusedPropertyRule(MavenSession session) {
-        this(ModelScanner.modelFrom(session), session.getCurrentProject().getModel());
+        this(modelFrom(session), session.getCurrentProject().getModel());
     }
 
     protected UnusedPropertyRule(Model originalModel, Model effectiveModel) {
@@ -63,7 +70,8 @@ public class UnusedPropertyRule extends AbstractEnforcerRule {
 
         return originalModel.getProperties().entrySet().stream()
                 .map(UnusedPropertyRule::asStringEntry)
-                .filter(UnusedPropertyRule::isVersionProperty)
+                .filter(this::isIncluded)
+                .filter(not(this::isExcluded))
                 .filter(e -> !suppressed.contains(e.getKey()))
                 .map(e -> {
                     String propName = e.getKey();
@@ -85,8 +93,24 @@ public class UnusedPropertyRule extends AbstractEnforcerRule {
                 .collect(toUnmodifiableSet());
     }
 
-    private static boolean isVersionProperty(Map.Entry<String, String> e) {
-        return e.getKey().endsWith(".version");
+    /**
+     * TODO should maven properties like ${project.version} be considered here?
+     * project.version is typically defined in the version element, so why would it be defined in the properties?
+     * Using a regex could cover both cases.
+     */
+    private boolean isIncluded(Map.Entry<String, String> e) {
+        // TODO these patterns could be precompiled and stored as fields instead of being recompiled for every property
+        if (includesPattern == null || includesPattern.isBlank()) return false;
+        Pattern includes = Pattern.compile(includesPattern);
+        Matcher includesMatcher = includes.matcher(e.getKey());
+        return includesMatcher.matches();
+    }
+
+    private boolean isExcluded(Map.Entry<String, String> e) {
+        if (excludesPattern == null || excludesPattern.isBlank()) return false;
+        Pattern excludes = Pattern.compile(excludesPattern);
+        Matcher excludesMatcher = excludes.matcher(e.getKey());
+        return excludesMatcher.matches();
     }
 
     /**
