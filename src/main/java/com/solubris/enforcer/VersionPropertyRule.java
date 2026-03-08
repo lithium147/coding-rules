@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static com.solubris.enforcer.ModelScanner.modelFrom;
@@ -36,8 +35,6 @@ import static java.util.stream.Collectors.toList;
  */
 @Named("versionPropertyRule")
 public class VersionPropertyRule extends AbstractEnforcerRule {
-    private static final Pattern PROPERTY_PATTERN = Pattern.compile("\\$\\{([^}]+)\\}");
-
     private final Model originalModel;
     private final Model effectiveModel;
 
