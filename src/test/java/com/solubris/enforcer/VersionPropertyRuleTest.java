@@ -64,11 +64,7 @@ class VersionPropertyRuleTest {
         @Test
         void multipleExplicitVersionsNotAllowed() {
             modelStubber.withDependency("junit", "junit", "4.13.2");
-            modelStubber.withDependency("org.junit.jupiter", "junit-jupiter-api", "4.13.2");
-
-//            DependencyManagement depMgmt = new DependencyManagement();
-//            depMgmt.addDependency(dependencyOf("org.junit.jupiter", "junit-jupiter-api", "4.13.2"));
-//            originalModel.setDependencyManagement(depMgmt);
+            modelStubber.withManagedDependency("org.junit.jupiter", "junit-jupiter-api", "4.13.2");
 
             Stream<String> violations = rule.scan();
 

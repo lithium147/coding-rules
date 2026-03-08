@@ -101,7 +101,7 @@ public class ModelStubber {
     }
 
     @CanIgnoreReturnValue
-    private ModelStubber withManagedDependency(String groupId, String artifactId, String version) {
+    public ModelStubber withManagedDependency(String groupId, String artifactId, String version) {
         DependencyManagement dependencyManagement = new DependencyManagement();
         dependencyManagement.addDependency(dependencyOf(groupId, artifactId, version));
         originalModel.setDependencyManagement(dependencyManagement);
