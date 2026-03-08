@@ -80,10 +80,10 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
                             .filter(Artifact::hasImplicitVersion)
                             .count();
                     if (artifacts.size() > 1) {
-                        if (propertyCount == 0) return missingPropertyViolation(effectiveVersion, artifacts);
-                        if (propertyCount < artifacts.size()) return unusedPropertyViolation(effectiveVersion, artifacts);
+                        if (propertyCount == 0) return missingProperty(effectiveVersion, artifacts);
+                        if (propertyCount < artifacts.size()) return unusedProperty(effectiveVersion, artifacts);
                     } else if (artifacts.size() == 1) {
-                        if (propertyCount == 1) return redundantPropertyViolation(artifacts.get(0));
+                        if (propertyCount == 1) return redundantProperty(artifacts.get(0));
                     }
                     return null;
                 }).filter(Objects::nonNull);
@@ -96,7 +96,7 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
         return null;
     }
 
-    private String redundantPropertyViolation(Artifact artifact) {
+    private String redundantProperty(Artifact artifact) {
         if (allowSingleUseOfProperty) return null;
 
         return String.format(
@@ -113,7 +113,7 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
      * <p>Could the artifacts refer to different properties that have the same value?
      * That's possible due to coincidental properties - another edge case to consider.
      */
-    private static String unusedPropertyViolation(String effectiveVersion, List<Artifact> artifacts) {
+    private static String unusedProperty(String effectiveVersion, List<Artifact> artifacts) {
         String unused = artifacts.stream()
                 .filter(Artifact::hasExplicitVersion)
                 .map(Artifact::key)
@@ -128,7 +128,7 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
                 propertyName, effectiveVersion, unused);
     }
 
-    private String missingPropertyViolation(String version, List<Artifact> artifacts) {
+    private String missingProperty(String version, List<Artifact> artifacts) {
         if (!requirePropertiesForDuplicates) return null;
 
         String unused = artifacts.stream()
