@@ -76,14 +76,14 @@ public class VersionPropertyRule extends AbstractEnforcerRule {
                 .map(e -> {
                     String effectiveVersion = e.getKey();
                     List<Artifact> artifacts = e.getValue();
-                    long propertyCount = artifacts.stream()
+                    long implicitVersionCount = artifacts.stream()
                             .filter(Artifact::hasImplicitVersion)
                             .count();
                     if (artifacts.size() > 1) {
-                        if (propertyCount == 0) return missingProperty(effectiveVersion, artifacts);
-                        if (propertyCount < artifacts.size()) return unusedProperty(effectiveVersion, artifacts);
+                        if (implicitVersionCount == 0) return missingProperty(effectiveVersion, artifacts);
+                        if (implicitVersionCount < artifacts.size()) return unusedProperty(effectiveVersion, artifacts);
                     } else if (artifacts.size() == 1) {
-                        if (propertyCount == 1) return redundantProperty(artifacts.get(0));
+                        if (implicitVersionCount == 1) return redundantProperty(artifacts.get(0));
                     }
                     return null;
                 }).filter(Objects::nonNull);
