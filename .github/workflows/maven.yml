@@ -32,6 +32,7 @@ jobs:
       with:
         sonar-host-url: https://sonarcloud.io
         sonar-token: ${{ secrets.SONAR_TOKEN }}
+        project-key: solubris_coding-rules
     - name: Upload SARIF
       if: github.event_name != 'pull_request'
       uses: github/codeql-action/upload-sarif@v4
