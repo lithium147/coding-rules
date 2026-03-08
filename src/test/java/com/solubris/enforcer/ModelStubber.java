@@ -139,4 +139,30 @@ public class ModelStubber {
         originalModel.addDependency(dependencyOf(groupId, artifactId, version));
         return this;
     }
+
+    @CanIgnoreReturnValue
+    public ModelStubber withPlugin(String groupId, String artifactId, String version, String effectiveVersion) {
+        Build build = new Build();
+        build.addPlugin(pluginOf(groupId, artifactId, effectiveVersion));
+        effectiveModel.setBuild(build);
+
+        build = new Build();
+        build.addPlugin(pluginOf(groupId, artifactId, asPlaceHolder(version)));
+        originalModel.setBuild(build);
+        originalModel.addProperty(version, effectiveVersion);
+
+        return this;
+    }
+
+    @CanIgnoreReturnValue
+    public ModelStubber withPlugin(String groupId, String artifactId, String version) {
+        Build build = new Build();
+        build.addPlugin(pluginOf(groupId, artifactId, version));
+        effectiveModel.setBuild(build);
+        build = new Build();
+        build.addPlugin(pluginOf(groupId, artifactId, asPlaceHolder(version)));
+        originalModel.setBuild(build);
+
+        return this;
+    }
 }

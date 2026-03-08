@@ -37,17 +37,9 @@ class UnusedPropertyRuleTest {
     }
 
     @Test
-    void versionPropertyUsedByDirectDependencyPasses() {
+    void versionPropertyUsedByDependencyPasses() {
         stubber.withDependency("org.junit", "junit", "junit.version", "4.13.2");
-
-        Stream<String> violations = rule.scan();
-
-        assertThat(violations).isEmpty();
-    }
-
-    @Test
-    void versionPropertyUsedByManagedDependencyPasses() {
-        stubber.withManagedDependency("org.junit", "junit", "junit.version", "5.9.3");
+        stubber.withManagedDependency("org.mockito", "mockito-core", "mockito.version", "5.22.0");
 
         Stream<String> violations = rule.scan();
 
@@ -58,17 +50,7 @@ class UnusedPropertyRuleTest {
 
     @Test
     void versionPropertyUsedByPluginPasses() {
-        stubber.withDependency("junit", "junit", "junit.version", "4.13.2");
-        stubber.withDependency("org.junit.jupiter", "junit-jupiter-api", "junit.version", "4.13.2");
-
-        originalModel.addProperty("compiler.version", "3.13.0");
-        Build originalBuild = new Build();
-        originalBuild.addPlugin(pluginOf("apache.maven.plugins", "maven-compiler-plugin", "${compiler.version}"));
-        originalModel.setBuild(originalBuild);
-
-        Build effectiveBuild = new Build();
-        effectiveBuild.addPlugin(pluginOf("apache.maven.plugins", "maven-compiler-plugin", "3.13.0"));
-        effectiveModel.setBuild(effectiveBuild);
+        stubber.withPlugin("apache.maven.plugins", "maven-compiler-plugin", "compiler.version", "3.13.0");
 
         Stream<String> violations = rule.scan();
 
