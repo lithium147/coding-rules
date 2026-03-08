@@ -19,6 +19,7 @@ import java.util.random.RandomGenerator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.solubris.NullSugar.coalesce;
 import static com.solubris.enforcer.PropertyUtil.asPlaceHolder;
 
 public class ModelStubber {
@@ -31,6 +32,10 @@ public class ModelStubber {
     public ModelStubber(Model originalModel, Model effectiveModel) {
         this.originalModel = originalModel;
         this.effectiveModel = effectiveModel;
+    }
+
+    private static Build buildFrom(Model model) {
+        return coalesce(model.getBuild(), new Build());
     }
 
     public static Dependency dependencyOf(String groupId, String artifactId, String version) {
@@ -182,19 +187,6 @@ public class ModelStubber {
         originalModel.addProperty(version, effectiveVersion);
 
         return this;
-    }
-
-    private static Build buildFrom(Model model) {
-        return coalesce(model.getBuild(), new Build());
-    }
-
-    @SafeVarargs
-    private static <T> T coalesce(T... t) {
-        for (T candidate : t) {
-            if (candidate != null) return candidate;
-        }
-
-        return null;
     }
 
     @CanIgnoreReturnValue
