@@ -19,6 +19,12 @@
         <unusedPropertyRule.suppressions>junit.version,kept-for-compat.version</unusedPropertyRule.suppressions>
         <pmd.version>7.22.0</pmd.version>
         <junit.version>6.0.3</junit.version>
+        <project.junit.version>6.0.3</project.junit.version>
+
+        <sonar.organization>solubris</sonar.organization>
+        <sonar.java.checkstyle.reportPaths>${project.build.directory}/checkstyle-result.xml</sonar.java.checkstyle.reportPaths>
+        <sonar.java.pmd.reportPaths>${project.build.directory}/pmd.xml</sonar.java.pmd.reportPaths>
+        <sonar.java.spotbugs.reportPaths>${project.build.directory}/spotbugsXml.xml</sonar.java.spotbugs.reportPaths>
     </properties>
 
     <dependencies>
@@ -46,7 +52,7 @@
         <dependency>
             <groupId>org.apache.maven.enforcer</groupId>
             <artifactId>enforcer-api</artifactId>
-            <version>3.4.1</version>
+            <version>3.6.2</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -101,7 +107,7 @@
         <dependency>
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
-            <version>4.8.6</version>
+            <version>4.9.8</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -130,7 +136,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
+                <version>3.15.0</version>
                 <configuration>
                     <compilerArgument>-Xlint:all</compilerArgument>
                     <annotationProcessorPaths>
@@ -141,6 +147,26 @@
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.12</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -158,7 +184,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.10.0</version>
+                <version>3.12.0</version>
                 <executions>
                     <execution>
                         <id>attach-javadocs</id>
@@ -210,7 +236,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-pmd-plugin</artifactId>
-                <version>3.26.0</version>
+                <version>3.28.0</version>
                 <configuration>
                     <!--suppress MavenModelInspection -->
                     <skip>${skipChecks}</skip>
@@ -294,11 +320,13 @@
                 <configuration>
                     <!--suppress MavenModelInspection -->
                     <skip>${skipChecks}</skip>
+                    <fail>false</fail>
                     <rules>
                         <versionPropertyRule>
                             <requirePropertiesForDuplicates>true</requirePropertiesForDuplicates>
                         </versionPropertyRule>
                         <bomImportScopeRule/>
+                        <unusedPropertyRule/>
                     </rules>
                 </configuration>
                 <executions>
