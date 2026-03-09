@@ -1,4 +1,4 @@
-package com.solubris;
+package com.solubris.pmd;
 
 import net.sourceforge.pmd.lang.rule.Rule;
 import net.sourceforge.pmd.test.RuleTst;

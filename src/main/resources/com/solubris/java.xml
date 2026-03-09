@@ -11,7 +11,7 @@
     <rule name="ExcessiveMockingOnSameObjectRule"
           language="java"
           since="1.0.0"
-          class="com.solubris.ExcessiveMockingOnSameObjectRule"
+          class="com.solubris.pmd.ExcessiveMockingOnSameObjectRule"
           message="Excessive mocking on {0}: {1} calls detected. Maximum allowed: {2}">
         <description>
             Detects when a single mock object has excessive Mockito when() calls within a method.
@@ -31,5 +31,80 @@ public void testOrderProcessing() {
     // Process the order...
 }
 ]]></example>
+    </rule>
+
+    <rule name="GetterMethodRule"
+          language="java"
+          since="1.0.0"
+          class="com.solubris.pmd.GetterMethodRule"
+          message="Invalid getter method ''{0}'': {1}">
+    <description>
+        Detects getter methods that violate conventions.
+        Only applies to methods that follow the proper getter naming pattern (getXxx where Xxx starts with a capital letter):
+        - Getter methods should have no parameters (configurable maximum)
+        - Getter methods should have 1 statement (configurable maximum)
+        - Getter methods should not be static (optional)
+        - Getter methods should not be final (optional)
+        - Getter methods should be public (optional)
+        Methods that violate these rules should be renamed to determine/produce/find/extract.
+        Note: Methods like get(), gettable(), getter() are ignored as they don't follow the proper getter pattern.
+    </description>
+    <priority>3</priority>
+    <example>
+            <![CDATA[
+// Violation: getter with parameter (when allowedParameters=0)
+public String getDrAccType(String flexResStr) {
+return flexResStr.substring(0, 5);
+}
+
+// Violation: getter with multiple statements (when allowedStatements=1)
+public String getDrAccType() {
+String flexRes = getFlexRes();
+String drAccType = flexRes.substring(0, 5);
+return drAccType;
+}
+
+// Violation: static getter (when checkNotStatic=true)
+public static String getName() {
+return "default";
+}
+
+// Violation: final getter (when checkNotFinal=true)
+public final String getName() {
+return name;
+}
+
+// Violation: non-public getter (when checkPublic=true)
+private String getName() {
+return name;
+}
+
+// Good: simple getter
+public String getName() {
+return name;
+}
+
+// Good: renamed method that does complex work
+public String determineDrAccType(String flexResStr) {
+    String flexRes = process(flexResStr);
+    return flexRes.substring(0, 5);
+}
+
+// Ignored: not a proper getter pattern
+public String get() {
+    return process();
+}
+
+// Ignored: not a proper getter pattern
+public boolean gettable(String param) {
+    return param != null;
+}
+
+// Ignored: not a proper getter pattern
+public Supplier<String> getter() {
+    return () -> "value";
+}
+            ]]>
+        </example>
     </rule>
 </ruleset>
