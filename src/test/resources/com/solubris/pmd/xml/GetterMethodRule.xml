@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<test-data
+        xmlns="http://pmd.sourceforge.net/rule-tests" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://pmd.sourceforge.net/rule-tests https://pmd.sourceforge.io/rule-tests_1_0_0.xsd">
+    <test-code>
+        <description>Valid simple getter should not trigger violation</description>
+        <expected-problems>0</expected-problems>
+        <code><![CDATA[
+public class TestClass {
+    private String name;
+
+    public String getName() {
+        return name;
+    }
+}
+    ]]></code>
+    </test-code>
+
+    <test-code>
+        <description>Getter with parameters should trigger violation</description>
+        <expected-problems>1</expected-problems>
+        <code><![CDATA[
+public class TestClass {
+    public String getAccType(String resStr) {
+        return resStr;
+    }
+}
+        ]]></code>
+    </test-code>
+
+    <test-code>
+        <description>Getter with multiple statements should trigger violation</description>
+        <expected-problems>1</expected-problems>
+        <code><![CDATA[
+import org.json.JSONObject;
+import org.json.JSONArray;
+
+public class TestClass {
+    private static final String ACCOUNT_TYPE = "accountType";
+
+    public String getAccType() {
+        JSONObject res = new JSONObject("");
+        JSONArray txn = res.getJSONArray(TXN_LEG);
+        String accType = txn.getJSONObject(1).getString(ACCOUNT_TYPE);
+        return accType;
+    }
+}
+        ]]></code>
+    </test-code>
+
+    <test-code>
+        <description>Getter with multiple statements should not trigger violation when limit is higher</description>
+        <rule-property name="allowedStatements">5</rule-property>
+        <expected-problems>0</expected-problems>
+        <code><![CDATA[
+import org.json.JSONObject;
+import org.json.JSONArray;
+
+public class TestClass {
+    private static final String ACCOUNT_TYPE = "accountType";
+
+    public String getAccType() {
+        JSONObject res = new JSONObject("");
+        JSONArray txn = res.getJSONArray(TXN_LEG);
+        String accType = txn.getJSONObject(1).getString(ACCOUNT_TYPE);
+        return accType;
+    }
+}
+    ]]></code>
+    </test-code>
+
+    <test-code>
+        <description>Non-getter method with parameters and multiple statements should not trigger violation</description>
+        <expected-problems>0</expected-problems>
+        <code><![CDATA[
+import org.json.JSONObject;
+import org.json.JSONArray;
+
+public class TestClass {
+    private static final String ACCOUNT_TYPE = "accountType";
+
+    public String determineAccType() {
+        JSONObject res = new JSONObject("");
+        JSONArray txn = res.getJSONArray(TXN_LEG);
+        String accType = txn.getJSONObject(1).getString(ACCOUNT_TYPE);
+        return accType;
+    }
+}
+    ]]></code>
+    </test-code>
+
+    <test-code>
+        <description>Static getter should not trigger violation when ignoreStatic is enabled</description>
+        <rule-property name="ignoreStatic">true</rule-property>
+        <expected-problems>0</expected-problems>
+        <code><![CDATA[
+public class TestClass {
+    public static String getDefaultValue() {
+        return "some_default";
+    }
+
+    public static String getDefaultValueWithParam(String param) {
+        return "some_default";
+    }
+}
+    ]]></code>
+    </test-code>
+
+    <test-code>
+        <description>Static getter should trigger violations</description>
+        <expected-problems>2</expected-problems>
+        <code><![CDATA[
+public class TestClass {
+    public static String getName(String param) {
+        return "name";
+    }
+}
+    ]]></code>
+    </test-code>
+
+    <test-code>
+        <description>Final getter should trigger violation</description>
+        <expected-problems>1</expected-problems>
+        <code><![CDATA[
+public class TestClass {
+    public final String getName() {
+        return "name";
+    }
+}
+    ]]></code>
+    </test-code>
+
+    <test-code>
+        <description>Protected getter should trigger violation</description>
+        <expected-problems>1</expected-problems>
+        <code><![CDATA[
+public class TestClass {
+    protected String getName() {
+        return "name";
+    }
+}
+    ]]></code>
+    </test-code>
+
+    <test-code>
+        <description>Method named get() should not trigger violation</description>
+        <expected-problems>0</expected-problems>
+        <code><![CDATA[
+public class TestClass {
+    public String get() {
+        String value = process();
+        log.info("Getting value");
+        return value;
+    }
+}
+    ]]></code>
+    </test-code>
+
+    <test-code>
+        <description>Method named gettable() should not trigger violation</description>
+        <expected-problems>0</expected-problems>
+        <code><![CDATA[
+public class TestClass {
+    public boolean gettable(String param1, String param2) {
+        String result = process(param1, param2);
+        log.info("Checking if gettable");
+        return result != null;
+    }
+}
+    ]]></code>
+    </test-code>
+</test-data>
