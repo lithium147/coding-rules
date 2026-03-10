@@ -1,6 +1,5 @@
 package com.solubris.enforcer;
 
-import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import org.apache.maven.model.Build;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.DependencyManagement;
@@ -19,7 +18,9 @@ import java.util.random.RandomGenerator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.solubris.NullSugar.coalesce;
 import static com.solubris.enforcer.PropertyUtil.asPlaceHolder;
+import static org.apache.maven.artifact.ArtifactUtils.versionlessKey;
 
 public class ModelStubber {
     private static final Set<String> previouslyGeneratedVersions = new HashSet<>();
@@ -31,6 +32,14 @@ public class ModelStubber {
     public ModelStubber(Model originalModel, Model effectiveModel) {
         this.originalModel = originalModel;
         this.effectiveModel = effectiveModel;
+    }
+
+    private static Build buildFrom(Model model) {
+        return coalesce(model.getBuild(), new Build());
+    }
+
+    private static Reporting reportingFrom(Model model) {
+        return coalesce(model.getReporting(), new Reporting());
     }
 
     public static Dependency dependencyOf(String groupId, String artifactId, String version) {
@@ -77,12 +86,13 @@ public class ModelStubber {
         PluginManagement pluginManagement = new PluginManagement();
         pluginManagement.addPlugin(pluginOf("org.apache.maven.plugins", "surefire-plugin", versionProvider.get()));
         build.setPluginManagement(pluginManagement);
+        originalModel.setBuild(build);
+        effectiveModel.setBuild(build);
+
         Reporting reporting = new Reporting();
         reporting.addPlugin(reportPluginOf("org.apache.maven.plugins", "maven-site-plugin", versionProvider.get()));
         originalModel.setReporting(reporting);
-        originalModel.setBuild(build);
         effectiveModel.setReporting(reporting);
-        effectiveModel.setBuild(build);
     }
 
     /**
@@ -100,29 +110,137 @@ public class ModelStubber {
         return result;
     }
 
-    @CanIgnoreReturnValue
-    public ModelStubber withManagedDependency(String groupId, String artifactId, String version) {
+    public void withManagedDependency(String groupId, String artifactId, String version, String effectiveVersion) {
         DependencyManagement dependencyManagement = new DependencyManagement();
-        dependencyManagement.addDependency(dependencyOf(groupId, artifactId, version));
-        originalModel.setDependencyManagement(dependencyManagement);
+        dependencyManagement.addDependency(dependencyOf(groupId, artifactId, effectiveVersion));
         effectiveModel.setDependencyManagement(dependencyManagement);
 
-        return this;
+        originalModel.addProperty(version, effectiveVersion);
+        dependencyManagement = new DependencyManagement();
+        dependencyManagement.addDependency(dependencyOf(groupId, artifactId, asPlaceHolder(version)));
+        originalModel.setDependencyManagement(dependencyManagement);
     }
 
-    @CanIgnoreReturnValue
-    public ModelStubber withDependency(String groupId, String artifactId, String version, String effectiveVersion) {
+    public void withManagedDependency(String groupId, String artifactId, String version) {
+        DependencyManagement dependencyManagement = new DependencyManagement();
+        dependencyManagement.addDependency(dependencyOf(groupId, artifactId, version));
+        effectiveModel.setDependencyManagement(dependencyManagement);
+        originalModel.setDependencyManagement(dependencyManagement);
+    }
+
+    public void withDependency(String groupId, String artifactId, String version, String effectiveVersion) {
         effectiveModel.addDependency(dependencyOf(groupId, artifactId, effectiveVersion));
         originalModel.addProperty(version, effectiveVersion);
-        version = asPlaceHolder(version);
-        originalModel.addDependency(dependencyOf(groupId, artifactId, version));
-        return this;
+        originalModel.addDependency(dependencyOf(groupId, artifactId, asPlaceHolder(version)));
     }
 
-    @CanIgnoreReturnValue
-    public ModelStubber withDependency(String groupId, String artifactId, String version) {
+    public void withDependency(String groupId, String artifactId, String version) {
         effectiveModel.addDependency(dependencyOf(groupId, artifactId, version));
         originalModel.addDependency(dependencyOf(groupId, artifactId, version));
-        return this;
+    }
+
+    public void withPlugin(String groupId, String artifactId, String version, String effectiveVersion) {
+        Build build = buildFrom(effectiveModel);
+        build.addPlugin(pluginOf(groupId, artifactId, effectiveVersion));
+        effectiveModel.setBuild(build);
+
+        build = buildFrom(originalModel);
+        build.addPlugin(pluginOf(groupId, artifactId, asPlaceHolder(version)));
+        originalModel.setBuild(build);
+        originalModel.addProperty(version, effectiveVersion);
+    }
+
+    public String withPlugin(String groupId, String artifactId, String version) {
+        Build build = buildFrom(effectiveModel);
+        build.addPlugin(pluginOf(groupId, artifactId, version));
+        effectiveModel.setBuild(build);
+        build = buildFrom(originalModel);
+        build.addPlugin(pluginOf(groupId, artifactId, version));
+        originalModel.setBuild(build);
+        return versionlessKey(groupId, artifactId);
+    }
+
+    public void withManagedPlugin(String groupId, String artifactId, String version, String effectiveVersion) {
+        PluginManagement pluginManagement = new PluginManagement();
+        pluginManagement.addPlugin(pluginOf(groupId, artifactId, effectiveVersion));
+        Build build = buildFrom(effectiveModel);
+        build.setPluginManagement(pluginManagement);
+        effectiveModel.setBuild(build);
+
+        pluginManagement = new PluginManagement();
+        pluginManagement.addPlugin(pluginOf(groupId, artifactId, asPlaceHolder(version)));
+        build = buildFrom(originalModel);
+        build.setPluginManagement(pluginManagement);
+        originalModel.setBuild(build);
+        originalModel.addProperty(version, effectiveVersion);
+    }
+
+    public void withManagedPlugin(String groupId, String artifactId, String version) {
+        PluginManagement pluginManagement = new PluginManagement();
+        pluginManagement.addPlugin(pluginOf(groupId, artifactId, version));
+        Build build = buildFrom(effectiveModel);
+        build.setPluginManagement(pluginManagement);
+        effectiveModel.setBuild(build);
+
+        pluginManagement = new PluginManagement();
+        pluginManagement.addPlugin(pluginOf(groupId, artifactId, version));
+        build = buildFrom(originalModel);
+        build.setPluginManagement(pluginManagement);
+        originalModel.setBuild(build);
+    }
+
+    public void withExtension(String groupId, String artifactId, String version, String effectiveVersion) {
+        Build build = buildFrom(effectiveModel);
+        build.addExtension(extensionOf(groupId, artifactId, effectiveVersion));
+        effectiveModel.setBuild(build);
+
+        build = buildFrom(originalModel);
+        build.addExtension(extensionOf(groupId, artifactId, asPlaceHolder(version)));
+        originalModel.setBuild(build);
+        originalModel.addProperty(version, effectiveVersion);
+    }
+
+    public void withExtension(String groupId, String artifactId, String version) {
+        Build build = buildFrom(effectiveModel);
+        build.addExtension(extensionOf(groupId, artifactId, version));
+        effectiveModel.setBuild(build);
+        build = buildFrom(originalModel);
+        build.addExtension(extensionOf(groupId, artifactId, version));
+        originalModel.setBuild(build);
+    }
+
+    public void withReportPlugin(String groupId, String artifactId, String version, String effectiveVersion) {
+        Reporting reporting = reportingFrom(effectiveModel);
+        reporting.addPlugin(reportPluginOf(groupId, artifactId, effectiveVersion));
+        effectiveModel.setReporting(reporting);
+
+        reporting = reportingFrom(originalModel);
+        reporting.addPlugin(reportPluginOf(groupId, artifactId, asPlaceHolder(version)));
+        originalModel.setReporting(reporting);
+        originalModel.addProperty(version, effectiveVersion);
+    }
+
+    public void withReportPlugin(String groupId, String artifactId, String version) {
+        Reporting reporting = reportingFrom(effectiveModel);
+        reporting.addPlugin(reportPluginOf(groupId, artifactId, version));
+        effectiveModel.setReporting(reporting);
+        reporting = reportingFrom(originalModel);
+        reporting.addPlugin(reportPluginOf(groupId, artifactId, version));
+        originalModel.setReporting(reporting);
+    }
+
+    public void withPluginDependency(String pluginId, String groupId, String artifactId, String version, String effectiveVersion) {
+        Plugin plugin = effectiveModel.getBuild().getPluginsAsMap().get(pluginId);
+        plugin.addDependency(dependencyOf(groupId, artifactId, effectiveVersion));
+        plugin = originalModel.getBuild().getPluginsAsMap().get(pluginId);
+        plugin.addDependency(dependencyOf(groupId, artifactId, asPlaceHolder(version)));
+        originalModel.addProperty(version, effectiveVersion);
+    }
+
+    public void withPluginDependency(String pluginId, String groupId, String artifactId, String version) {
+        Plugin plugin = effectiveModel.getBuild().getPluginsAsMap().get(pluginId);
+        plugin.addDependency(dependencyOf(groupId, artifactId, version));
+        plugin = originalModel.getBuild().getPluginsAsMap().get(pluginId);
+        plugin.addDependency(dependencyOf(groupId, artifactId, asPlaceHolder(version)));
     }
 }

@@ -28,7 +28,7 @@ import static org.apache.maven.artifact.ArtifactUtils.key;
  * a build failure.
  *
  * <p>BOMs (Bill of Materials) are intended to be imported via
- * {@code <scope>import</scope>} inside {@code <dependencyManagement>}.
+ * scope=import inside dependencyManagement.
  * Using them without import scope is almost always a mistake and can lead
  * to unexpected transitive dependency resolution.
  */

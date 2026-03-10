@@ -2,24 +2,16 @@ package com.solubris.enforcer;
 
 import org.apache.maven.enforcer.rule.api.EnforcerLogger;
 import org.apache.maven.enforcer.rule.api.EnforcerRuleException;
-import org.apache.maven.model.Build;
-import org.apache.maven.model.DependencyManagement;
 import org.apache.maven.model.Model;
-import org.apache.maven.model.Plugin;
-import org.apache.maven.model.PluginManagement;
-import org.apache.maven.model.Reporting;
 import org.junit.jupiter.api.Test;
 
 import java.util.stream.Stream;
 
-import static com.solubris.enforcer.ModelStubber.dependencyOf;
-import static com.solubris.enforcer.ModelStubber.extensionOf;
-import static com.solubris.enforcer.ModelStubber.pluginOf;
-import static com.solubris.enforcer.ModelStubber.reportPluginOf;
 import static com.solubris.enforcer.UnusedPropertyRule.SUPPRESSIONS_PROPERTY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchException;
 import static org.mockito.Mockito.mock;
 
 class UnusedPropertyRuleTest {
@@ -38,65 +30,19 @@ class UnusedPropertyRuleTest {
     }
 
     @Test
-    void versionPropertyUsedByDirectDependencyPasses() {
+    void versionPropertyUsedByDependencyPasses() {
         stubber.withDependency("org.junit", "junit", "junit.version", "4.13.2");
+        stubber.withManagedDependency("org.mockito", "mockito-core", "mockito.version", "5.22.0");
 
         Stream<String> violations = rule.scan();
 
         assertThat(violations).isEmpty();
     }
-
-    @Test
-    void versionPropertyUsedByManagedDependencyPasses() {
-        originalModel.addProperty("junit.version", "5.9.3");
-        DependencyManagement originalDepMgmt = new DependencyManagement();
-        originalDepMgmt.addDependency(dependencyOf("org.junit", "junit", "${junit.version}"));
-        originalModel.setDependencyManagement(originalDepMgmt);
-
-        DependencyManagement effectiveDepMgmt = new DependencyManagement();
-        effectiveDepMgmt.addDependency(dependencyOf("org.junit", "junit", "5.9.3"));
-        effectiveModel.setDependencyManagement(effectiveDepMgmt);
-
-        Stream<String> violations = rule.scan();
-
-        assertThat(violations).isEmpty();
-    }
-//    <groupId>org.jacoco</groupId>
-//    <artifactId>jacoco-maven-plugin</artifactId>
 
     @Test
     void versionPropertyUsedByPluginPasses() {
-        stubber.withDependency("junit", "junit", "junit.version", "4.13.2");
-        stubber.withDependency("org.junit.jupiter", "junit-jupiter-api", "junit.version", "4.13.2");
-
-        originalModel.addProperty("compiler.version", "3.13.0");
-        Build originalBuild = new Build();
-        originalBuild.addPlugin(pluginOf("apache.maven.plugins", "maven-compiler-plugin", "${compiler.version}"));
-        originalModel.setBuild(originalBuild);
-
-        Build effectiveBuild = new Build();
-        effectiveBuild.addPlugin(pluginOf("apache.maven.plugins", "maven-compiler-plugin", "3.13.0"));
-        effectiveModel.setBuild(effectiveBuild);
-
-        Stream<String> violations = rule.scan();
-
-        assertThat(violations).isEmpty();
-    }
-
-    @Test
-    void versionPropertyUsedByManagedPluginPasses() {
-        originalModel.addProperty("compiler.version", "3.13.0");
-        Build originalBuild = new Build();
-        PluginManagement originalPluginMgmt = new PluginManagement();
-        originalPluginMgmt.addPlugin(pluginOf("apache.maven.plugins", "maven-compiler-plugin", "${compiler.version}"));
-        originalBuild.setPluginManagement(originalPluginMgmt);
-        originalModel.setBuild(originalBuild);
-
-        Build effectiveBuild = new Build();
-        PluginManagement effectivePluginMgmt = new PluginManagement();
-        effectivePluginMgmt.addPlugin(pluginOf("apache.maven.plugins", "maven-compiler-plugin", "3.13.0"));
-        effectiveBuild.setPluginManagement(effectivePluginMgmt);
-        effectiveModel.setBuild(effectiveBuild);
+        stubber.withPlugin("apache.maven.plugins", "maven-compiler-plugin", "compiler.version", "3.13.0");
+        stubber.withManagedPlugin("org.jacoco", "jacoco-maven-plugin", "jacoco.version", "0.8.12");
 
         Stream<String> violations = rule.scan();
 
@@ -105,14 +51,7 @@ class UnusedPropertyRuleTest {
 
     @Test
     void versionPropertyUsedByExtensionPasses() {
-        originalModel.addProperty("ext.version", "1.0.0");
-        Build originalBuild = new Build();
-        originalBuild.addExtension(extensionOf("org.example", "my-extension", "${ext.version}"));
-        originalModel.setBuild(originalBuild);
-
-        Build effectiveBuild = new Build();
-        effectiveBuild.addExtension(extensionOf("org.example", "my-extension", "1.0.0"));
-        effectiveModel.setBuild(effectiveBuild);
+        stubber.withExtension("org.example", "my-extension", "ext.version", "1.0.0");
 
         Stream<String> violations = rule.scan();
 
@@ -121,14 +60,7 @@ class UnusedPropertyRuleTest {
 
     @Test
     void versionPropertyUsedByReportPluginPasses() {
-        originalModel.addProperty("site.version", "4.0.0");
-        Reporting originalReporting = new Reporting();
-        originalReporting.addPlugin(reportPluginOf("apache.maven.plugins", "maven-site-plugin", "${site.version}"));
-        originalModel.setReporting(originalReporting);
-
-        Reporting effectiveReporting = new Reporting();
-        effectiveReporting.addPlugin(reportPluginOf("apache.maven.plugins", "maven-site-plugin", "4.0.0"));
-        effectiveModel.setReporting(effectiveReporting);
+        stubber.withReportPlugin("apache.maven.plugins", "maven-site-plugin", "site.version", "4.0.0");
 
         Stream<String> violations = rule.scan();
 
@@ -171,11 +103,8 @@ class UnusedPropertyRuleTest {
 
     @Test
     void multiplePropertiesMixedUsage() {
-        originalModel.addProperty("junit.version", "5.9.3");
         originalModel.addProperty("old-lib.version", "2.0.0");
-        originalModel.addDependency(dependencyOf("org.junit", "junit", "${junit.version}"));
-
-        effectiveModel.addDependency(dependencyOf("org.junit", "junit", "5.9.3"));
+        stubber.withDependency("org.junit", "junit", "junit.version", "4.13.2");
 
         Stream<String> violations = rule.scan();
 
@@ -207,28 +136,17 @@ class UnusedPropertyRuleTest {
 
     @Test
     void executePassesWhenAllPropertiesUsed() {
-        originalModel.addProperty("junit.version", "5.9.3");
-        originalModel.addDependency(dependencyOf("org.junit", "junit", "${junit.version}"));
+        stubber.withDependency("org.junit", "junit", "junit.version", "4.13.2");
 
-        effectiveModel.addDependency(dependencyOf("org.junit", "junit", "5.9.3"));
+        Exception result = catchException(rule::execute);
 
-        assertThatNoException().isThrownBy(rule::execute);
+        assertThat(result).isNull();
     }
 
     @Test
     void versionPropertyUsedByPluginDependencyPasses() {
-        originalModel.addProperty("api.version", "3.0.0");
-        Build originalBuild = new Build();
-        Plugin plugin = pluginOf("org.apache.maven.plugins", "maven-compiler-plugin", "3.13.0");
-        plugin.addDependency(dependencyOf("org.apache.maven", "maven-plugin-api", "${api.version}"));
-        originalBuild.addPlugin(plugin);
-        originalModel.setBuild(originalBuild);
-
-        Build effectiveBuild = new Build();
-        Plugin effectivePlugin = pluginOf("org.apache.maven.plugins", "maven-compiler-plugin", "3.13.0");
-        effectivePlugin.addDependency(dependencyOf("org.apache.maven", "maven-plugin-api", "3.0.0"));
-        effectiveBuild.addPlugin(effectivePlugin);
-        effectiveModel.setBuild(effectiveBuild);
+        String pluginId = stubber.withPlugin("org.apache.maven.plugins", "maven-compiler-plugin", "3.13.0");
+        stubber.withPluginDependency(pluginId, "org.apache.maven", "maven-plugin-api", "api.version", "3.0.0");
 
         Stream<String> violations = rule.scan();
 

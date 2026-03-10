@@ -1,4 +1,4 @@
-package com.solubris;
+package com.solubris.pmd;
 
 import net.sourceforge.pmd.lang.java.ast.ASTExpression;
 import net.sourceforge.pmd.lang.java.ast.ASTList;
