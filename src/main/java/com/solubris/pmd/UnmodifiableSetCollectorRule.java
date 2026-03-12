@@ -24,29 +24,6 @@ public class UnmodifiableSetCollectorRule extends AbstractJavaRule {
                 .ifPresent(qualifier -> addViolation(node, asCtx(data)));
 
         return data;
-/*
-        // Check method name is 'collect'
-        if (!"collect".equals(node.getMethodName())) return data;
-
-        ASTList<?> args = node.getArguments();
-        if (args.size() != 1) {
-            return data;
-        }
-
-        Object arg = args.get(0);
-        ASTMethodCall argCall = unwrapMethodCall(arg);
-        if (argCall == null) return null;
-        ASTExpression qualifier = argCall.getQualifier();
-        if ("toSet".equals(argCall.getMethodName())
-//                && qualifier instanceof ASTVariableAccess
-                && "Collectors".equals(qualifier.getFirstToken().getImage())) {
-
-            addViolation(node, data);
-        }
-
-        return data;
-
- */
     }
 
     private static void addViolation(ASTMethodCall node, RuleContext ctx) {
@@ -56,9 +33,7 @@ public class UnmodifiableSetCollectorRule extends AbstractJavaRule {
 
     // Recursively unwraps ASTExpression nodes to find an ASTMethodCall
     private static ASTMethodCall unwrapMethodCall(Object node) {
-        if (node instanceof ASTMethodCall) {
-            return (ASTMethodCall) node;
-        }
+        if (node instanceof ASTMethodCall astMethodCall) return astMethodCall;
 
         if (node instanceof ASTExpression expr && expr.getNumChildren() == 1) {
             return unwrapMethodCall(expr.getChild(0));
