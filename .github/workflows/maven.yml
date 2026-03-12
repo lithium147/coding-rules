@@ -41,7 +41,10 @@ jobs:
                   "pattern": "**/target/*-reports/TEST*.xml"
                 }
               ],
-              "failureRateImpact": -1,
+              "maxScore": 100,
+              "passedImpact": 1,
+              "failureImpact": -5,
+              "skippedImpact": -1,
               "maxScore": 100
             },
             "analysis": [
