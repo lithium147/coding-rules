@@ -107,8 +107,8 @@ public class TestClass {
     </test-code>
 
     <test-code>
-        <description>Static getter should trigger violations</description>
-        <expected-problems>2</expected-problems>
+        <description>Static getter should trigger violation</description>
+        <expected-problems>1</expected-problems>
         <code><![CDATA[
 public class TestClass {
     public static String getName(String param) {

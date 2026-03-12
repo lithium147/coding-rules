@@ -37,7 +37,7 @@ public void testOrderProcessing() {
           language="java"
           since="1.0.0"
           class="com.solubris.pmd.GetterMethodRule"
-          message="Invalid getter method ''{0}'': {1}">
+          message="Invalid getter method ''{0}'':&#13;&#10;{1}&#13;&#10;Alternate names: determine/produce/find/extract/retrieve/compute/collect/gather">
     <description>
         Detects getter methods that violate conventions.
         Only applies to methods that follow the proper getter naming pattern (getXxx where Xxx starts with a capital letter):

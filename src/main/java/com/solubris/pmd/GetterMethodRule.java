@@ -8,7 +8,11 @@ import net.sourceforge.pmd.properties.PropertyDescriptor;
 import net.sourceforge.pmd.reporting.RuleContext;
 
 import java.text.MessageFormat;
+import java.util.concurrent.atomic.LongAdder;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 
+import static java.util.stream.Collectors.joining;
 import static net.sourceforge.pmd.lang.java.ast.JModifier.PUBLIC;
 import static net.sourceforge.pmd.properties.PropertyFactory.booleanProperty;
 import static net.sourceforge.pmd.properties.PropertyFactory.intProperty;
@@ -55,72 +59,67 @@ public class GetterMethodRule extends AbstractJavaRule {
         return null;
     }
 
+    /**
+     * For a given method, it's shows better in sonar if there is only one violation.
+     * This means combining the various checks into a single getter method violation.
+     * But not sure how that would look - it might be too long.
+     * Does it support newlines in the violation text?
+     */
     private void checkMethod(ASTMethodDeclaration node, RuleContext context) {
         String methodName = node.getName();
         if (!isGetterMethod(methodName)) return;
 
+        Stream.Builder<String> builder = Stream.builder();
         if (node.isStatic()) {
             boolean ignoreStatic = getProperty(IGNORE_STATIC);
             if (ignoreStatic) {
                 return;
             } else {
-                context.addViolation(node,
-                        methodName,
-                        "should not be static. Consider making it an instance method or renaming if it's a utility method");
+                builder.accept("should not be static. Consider making it an instance method or renaming if it's a utility method");
             }
         }
 
-        checkNotFinal(node, context, methodName, getProperty(CHECK_NOT_FINAL));
-        checkPublic(node, context, methodName, getProperty(CHECK_PUBLIC));
-        checkParameters(node, context, methodName, getProperty(ALLOWED_PARAMETERS));
-        checkStatements(node, context, methodName, getProperty(ALLOWED_STATEMENTS));
+        checkNotFinal(node, builder, getProperty(CHECK_NOT_FINAL));
+        checkPublic(node, builder, getProperty(CHECK_PUBLIC));
+        checkParameters(node, builder, getProperty(ALLOWED_PARAMETERS));
+        checkStatements(node, builder, getProperty(ALLOWED_STATEMENTS));
+
+        LongAdder count = new LongAdder();
+        String message = builder.build()
+                .peek(t -> count.increment())
+                .collect(joining("\n - ", " - ", ""));
+        if (count.sum() == 0) return;
+        context.addViolation(node, methodName, message);
     }
 
-    private static void checkNotFinal(ASTMethodDeclaration node,
-                                      RuleContext context,
-                                      String methodName,
-                                      boolean check) {
+    private static void checkNotFinal(ASTMethodDeclaration node, Consumer<String> context, boolean check) {
         if (!check) return;
         if (!node.isFinal()) return;
 
-        context.addViolation(node,
-                methodName,
-                "should not be final. Getters should be overridable unless there's a specific reason");
+        context.accept("should not be final. Getters should be overridable unless there's a specific reason");
     }
 
-    private static void checkPublic(ASTMethodDeclaration node,
-                                    RuleContext context,
-                                    String methodName,
-                                    boolean check) {
+    private static void checkPublic(ASTMethodDeclaration node, Consumer<String> context, boolean check) {
         if (!check) return;
         if (node.hasModifiers(PUBLIC)) return;
 
-        context.addViolation(node,
-                methodName,
-                "should be public. Getters should be accessible from outside the class");
+        context.accept("should be public. Getters should be accessible from outside the class");
     }
 
-    private static void checkParameters(ASTMethodDeclaration node,
-                                        RuleContext context,
-                                        String methodName,
-                                        int max) {
+    private static void checkParameters(ASTMethodDeclaration node, Consumer<String> context, int max) {
         if (max < 0) return;
 
         if (node.getFormalParameters().size() > max) {
             String message = MessageFormat.format(
-                    "has {0} parameters but should have at most {1}. " +
-                            "Consider renaming to determine/produce/find/extract/retrieve/compute/collect/gather if it needs parameters",
+                    "has {0} parameters but should have at most {1}. Consider renaming if it needs parameters",
                     node.getFormalParameters().size(),
                     max
             );
-            context.addViolation(node, methodName, message);
+            context.accept(message);
         }
     }
 
-    private static void checkStatements(ASTMethodDeclaration node,
-                                        RuleContext context,
-                                        String methodName,
-                                        int max) {
+    private static void checkStatements(ASTMethodDeclaration node, Consumer<String> context, int max) {
         if (max < 0) return;
 
         ASTBlock block = node.getBody();
@@ -132,12 +131,11 @@ public class GetterMethodRule extends AbstractJavaRule {
         if (statements <= max) return;
 
         String message = MessageFormat.format(
-                "has {0} statements but should have at most {1}. " +
-                        "Consider renaming to determine/produce/find/extract/retrieve/compute/collect/gather if it performs complex logic",
+                "has {0} statements but should have at most {1}. Consider renaming if it performs complex logic",
                 statements,
                 max
         );
-        context.addViolation(node, methodName, message);
+        context.accept(message);
     }
 
     private static boolean isGetterMethod(String methodName) {

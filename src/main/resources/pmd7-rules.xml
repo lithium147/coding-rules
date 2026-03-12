@@ -184,4 +184,6 @@
     </rule>
     <rule ref="category/ecmascript/errorprone.xml">
     </rule>
+    <rule ref="com/solubris/java.xml">
+    </rule>
 </ruleset>
