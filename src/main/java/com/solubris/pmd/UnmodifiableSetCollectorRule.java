@@ -2,9 +2,9 @@ package com.solubris.pmd;
 
 import net.sourceforge.pmd.lang.java.ast.ASTExpression;
 import net.sourceforge.pmd.lang.java.ast.ASTMethodCall;
-import net.sourceforge.pmd.lang.java.ast.QualifiableExpression;
 import net.sourceforge.pmd.lang.java.rule.AbstractJavaRule;
 import net.sourceforge.pmd.reporting.RuleContext;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Optional;
 
@@ -18,17 +18,25 @@ public class UnmodifiableSetCollectorRule extends AbstractJavaRule {
                 .map(args -> args.getFirstChild())
                 .map(UnmodifiableSetCollectorRule::unwrapMethodCall)
                 .filter(argCall -> argCall.getMethodName().equals("toSet"))
-                .map(QualifiableExpression::getQualifier)
-//                .filter(ASTVariableAccess.class::isInstance)
-                .filter(qualifier -> "Collectors".equals(qualifier.getFirstToken().getImage()))
-                .ifPresent(qualifier -> addViolation(node, asCtx(data)));
+                .filter(UnmodifiableSetCollectorRule::isCollectorsMethod)
+                .ifPresent(methodCall -> addViolation(node, asCtx(data), methodCall.getQualifier()));
 
         return data;
     }
 
-    private static void addViolation(ASTMethodCall node, RuleContext ctx) {
+    /**
+     * The toSet() may or may not be qualified by Collectors class.
+     */
+    private static boolean isCollectorsMethod(ASTMethodCall methodCall) {
+        ASTExpression qualifier = methodCall.getQualifier();
+        if (qualifier == null) return true;
+        return "Collectors".equals(qualifier.getFirstToken().getImage());
+    }
+
+    private static void addViolation(ASTMethodCall node, RuleContext ctx, @Nullable ASTExpression qualifier) {
+        String qualifierPrefix = qualifier == null ? "" : qualifier.getFirstToken().getImage() + ".";
         ctx.addViolation(node,
-                ".collect(Collectors.toSet()) should be replaced with .collect(toUnmodifiableSet())");
+                ".collect(" + qualifierPrefix + "toSet()) should be replaced with .collect(" + qualifierPrefix + "toUnmodifiableSet())");
     }
 
     // Recursively unwraps ASTExpression nodes to find an ASTMethodCall
