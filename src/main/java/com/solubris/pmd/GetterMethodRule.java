@@ -65,7 +65,14 @@ public class GetterMethodRule extends AbstractJavaRule {
      * But not sure how that would look - it might be too long.
      * Does it support newlines in the violation text?
      * - yes, but not in sonar UI
-     * Does it support HTML?
+     * Does it support HTML? no
+     *
+     * <p>Best to use the externalUrl to explain the problems.
+     * Can provide a link to md file in github.
+     * Could have 2 modes output:
+     * - single problem violation
+     * - multi problem violation
+     * Then output can still be tailored in some cases.
      */
     private void checkMethod(ASTMethodDeclaration node, RuleContext context) {
         String methodName = node.getName();
@@ -77,7 +84,7 @@ public class GetterMethodRule extends AbstractJavaRule {
             if (ignoreStatic) {
                 return;
             } else {
-                builder.accept("should not be static. Consider making it an instance method or renaming if it's a utility method");
+                builder.accept("should not be static");
             }
         }
 
@@ -89,7 +96,7 @@ public class GetterMethodRule extends AbstractJavaRule {
         LongAdder count = new LongAdder();
         String message = builder.build()
                 .peek(t -> count.increment())
-                .collect(joining("\n<BR> - ", " - ", ""));
+                .collect(joining(".\n - ", " - ", ""));
         if (count.sum() == 0) return;
         context.addViolation(node, methodName, message);
     }
@@ -98,14 +105,14 @@ public class GetterMethodRule extends AbstractJavaRule {
         if (!check) return;
         if (!node.isFinal()) return;
 
-        context.accept("should not be final. Getters should be overridable unless there's a specific reason");
+        context.accept("should not be final");
     }
 
     private static void checkPublic(ASTMethodDeclaration node, Consumer<String> context, boolean check) {
         if (!check) return;
         if (node.hasModifiers(PUBLIC)) return;
 
-        context.accept("should be public. Getters should be accessible from outside the class");
+        context.accept("should be public");
     }
 
     private static void checkParameters(ASTMethodDeclaration node, Consumer<String> context, int max) {
@@ -113,7 +120,7 @@ public class GetterMethodRule extends AbstractJavaRule {
 
         if (node.getFormalParameters().size() > max) {
             String message = MessageFormat.format(
-                    "has {0} parameters but should have at most {1}. Consider renaming if it needs parameters",
+                    "has {0} parameters but should have at most {1}",
                     node.getFormalParameters().size(),
                     max
             );
@@ -133,7 +140,7 @@ public class GetterMethodRule extends AbstractJavaRule {
         if (statements <= max) return;
 
         String message = MessageFormat.format(
-                "has {0} statements but should have at most {1}. Consider renaming if it performs complex logic",
+                "has {0} statements but should have at most {1}",
                 statements,
                 max
         );

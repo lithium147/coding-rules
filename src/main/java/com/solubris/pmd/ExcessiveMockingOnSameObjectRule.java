@@ -31,6 +31,18 @@ public class ExcessiveMockingOnSameObjectRule extends AbstractJavaRule {
         definePropertyDescriptor(MAX_ALLOWED_DESCRIPTOR);
     }
 
+    /**
+     * TODO review violation location.
+     * Currently the location is on the method, but this is not really the source of the problem.
+     * Also, means can end up many violations on the same location.
+     * Might be better to have location based on:
+     * - where mock subject is declared or assigned
+     * - the first (or last, or Nth mocking) on the subject
+     * The mock subject might be declared/assigned outside the method,
+     * so could be difficult to raise the violations there.
+     * However, this is probably the piece of code that needs to change.
+     * The mocking site helps as its the point where investigation would begin.
+     */
     @Override
     public Object visit(ASTMethodDeclaration node, Object data) {
         int maxAllowed = getProperty(MAX_ALLOWED_DESCRIPTOR);
